@@ -22,7 +22,14 @@
       "WebFetch(domain:gist.github.com)",
       "Bash(node:*)",
       "Bash(xxd \"/Users/arcos/Desktop/risk assessment/isr-ops/.claude/agents/pm-synthetic-tester.md\" | head -20)",
-      "Bash(xxd \"/Users/arcos/Desktop/risk assessment/isr-ops/.claude/agents/pm-synthetic-tester.md\" | grep '5c6e')"
+      "Bash(xxd \"/Users/arcos/Desktop/risk assessment/isr-ops/.claude/agents/pm-synthetic-tester.md\" | grep '5c6e')",
+      "Bash(cd \"/Users/arcos/Desktop/risk assessment/isr-ops\" && npx vite build --mode development 2>&1 | tail -20)",
+      "Bash(cd \"/Users/arcos/Desktop/risk assessment/isr-ops\" && npx vite build --logLevel error 2>&1 | tail -20)",
+      "Bash(wc -l /Users/arcos/Desktop/risk\\\\ assessment/isr-ops/src/components/*/*.jsx | sort -n)",
+      "Bash(cd \"/Users/arcos/Desktop/risk assessment/isr-ops\" && git add src/components/Remediation/GapTracker.jsx && git commit -m \"$\\(cat <<'EOF'\nReplace Path to Green with triage progress banner\n\nSwapped the gap-health-focused banner for a triage progress widget\nshowing pipeline throughput \\(awaiting → triaged → closed\\) with a\nmodern card layout and gradient styling.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\" && git status)",
+      "Bash(cd \"/Users/arcos/Desktop/risk assessment/isr-ops\" && git add README.md && git commit -m \"$\\(cat <<'EOF'\nRewrite README to reflect current platform state\n\nUpdated all sections to match actual codebase: weighted posture scoring\nmodel, 3 object types with type-conditional forms, intake pipeline\nworkflow, corrected MLG checkpoints, architecture paths, and seed data.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(cd \"/Users/arcos/Desktop/risk assessment/isr-ops\" && git push)",
+      "Bash(gh pr list --state all 2>&1)"
     ]
   }
 }
