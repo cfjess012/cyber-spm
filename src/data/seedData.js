@@ -171,6 +171,9 @@ export const SEED_OBJECTS = [
     businessUnit: 'AI Security',
     createdAt: '2025-08-01T08:00:00.000Z',
     updatedAt: '2026-01-15T16:45:00.000Z',
+    remediationItems: [
+      { id: 'r0000006', title: 'Deploy recursive JSON PII scanner', status: 'In Progress', severity: 'RED', note: 'PR #4521 under review. Expected completion Feb 28.', createdAt: '2026-01-20T10:00:00.000Z', resolvedAt: null },
+    ],
   },
   {
     id: OBJ_IDS.aiRedTeam,
@@ -513,6 +516,10 @@ export const SEED_OBJECTS = [
     businessUnit: 'IAM',
     createdAt: '2024-06-15T10:00:00.000Z',
     updatedAt: '2026-02-03T14:00:00.000Z',
+    remediationItems: [
+      { id: 'r0000001', title: 'Decommission 32 orphaned service accounts', status: 'In Progress', severity: 'RED', note: 'Manual cleanup initiated. 18 of 32 accounts disabled.', createdAt: '2025-12-05T10:00:00.000Z', resolvedAt: null },
+      { id: 'r0000002', title: 'Implement CMDB integration for automated deprovisioning', status: 'Open', severity: 'AMBER', note: 'Design phase — architecture review scheduled.', createdAt: '2026-01-15T10:00:00.000Z', resolvedAt: null },
+    ],
   },
   {
     id: OBJ_IDS.mfaPlatform,
@@ -651,6 +658,10 @@ export const SEED_OBJECTS = [
     businessUnit: 'Software Security',
     createdAt: '2025-04-15T10:00:00.000Z',
     updatedAt: '2026-01-22T09:00:00.000Z',
+    remediationItems: [
+      { id: 'r0000004', title: 'Update ZAP scan configurations for React/Vue SPAs', status: 'In Progress', severity: 'AMBER', note: 'Testing on 10 additional apps this sprint.', createdAt: '2026-01-22T09:00:00.000Z', resolvedAt: null },
+      { id: 'r0000005', title: 'Add authenticated scan profiles for 8 remaining apps', status: 'Open', severity: 'AMBER', note: 'Waiting on app team credentials.', createdAt: '2026-02-05T10:00:00.000Z', resolvedAt: null },
+    ],
   },
   {
     id: OBJ_IDS.scaEngine,
@@ -789,6 +800,9 @@ export const SEED_OBJECTS = [
     businessUnit: 'Vulnerability Management',
     createdAt: '2024-05-01T10:00:00.000Z',
     updatedAt: '2026-02-01T15:00:00.000Z',
+    remediationItems: [
+      { id: 'r0000003', title: 'Deploy Ansible playbooks for Linux patch automation', status: 'In Progress', severity: 'AMBER', note: 'Playbooks in staging. Target production rollout March 1.', createdAt: '2026-02-01T15:00:00.000Z', resolvedAt: null },
+    ],
   },
   {
     id: OBJ_IDS.bugBounty,
@@ -963,13 +977,19 @@ export const SEED_OBJECTS = [
 ]
 
 // ─────────────────────────────────────────────
-// GAPS (14 total, linked to objects above)
+// GAPS (14 total — pipeline items for intake)
 // ─────────────────────────────────────────────
 export const SEED_GAPS = [
   // ── AI Security gaps ──
   {
     id: GAP_IDS.g1,
-    objectIds: [OBJ_IDS.aiRedTeam, OBJ_IDS.aiModelRegistry],
+    productFamily: 'AI Security',
+    targetType: 'Control',
+    owner: 'Sarah Okonkwo',
+    criticality: 'High',
+    identifier: 'Sarah Okonkwo',
+    triaged: true,
+
     title: 'Incomplete AI Red Team coverage for LLM services',
     description: 'LLM-based services (chatbot, code assistant, summarizer) have not undergone adversarial testing. Prompt injection and jailbreak attack vectors are untested.',
     status: 'Open',
@@ -990,7 +1010,13 @@ export const SEED_GAPS = [
   },
   {
     id: GAP_IDS.g2,
-    objectIds: [OBJ_IDS.aiDataPipeline],
+    productFamily: 'AI Security',
+    targetType: 'Control',
+    owner: 'Marco Ruiz',
+    criticality: 'High',
+    identifier: 'Marco Ruiz',
+    triaged: true,
+
     title: 'PII leakage in ML training data pipeline',
     description: 'Data scrubbing stage misses nested JSON PII fields in 15% of ingested records. Downstream models may train on unsanitized personal data.',
     status: 'In Progress',
@@ -1014,7 +1040,13 @@ export const SEED_GAPS = [
   // ── Data Protection gaps ──
   {
     id: GAP_IDS.g3,
-    objectIds: [OBJ_IDS.cloudDlp],
+    productFamily: 'Data Protection',
+    targetType: 'Control',
+    owner: 'Tyler Washington',
+    criticality: 'High',
+    identifier: 'Tyler Washington',
+    triaged: true,
+
     title: 'SaaS DLP coverage gap — Slack, Notion, Figma',
     description: 'Three sanctioned SaaS applications lack inline DLP inspection. Users can share sensitive data via these channels without detection.',
     status: 'In Progress',
@@ -1037,7 +1069,13 @@ export const SEED_GAPS = [
   },
   {
     id: GAP_IDS.g4,
-    objectIds: [OBJ_IDS.dataClassEngine, OBJ_IDS.dlpEndpoint],
+    productFamily: 'Data Protection',
+    targetType: 'Control',
+    owner: 'Anika Patel',
+    criticality: 'High',
+    identifier: 'Anika Patel',
+    triaged: true,
+
     title: 'Unclassified data stores in legacy on-prem systems',
     description: '30% of on-premises file shares have not been scanned by the classification engine. DLP policies cannot enforce rules on unclassified data.',
     status: 'Open',
@@ -1060,7 +1098,13 @@ export const SEED_GAPS = [
   // ── Insider Risk gaps ──
   {
     id: GAP_IDS.g5,
-    objectIds: [OBJ_IDS.dcrMonitoring, OBJ_IDS.insiderThreatPlatform],
+    productFamily: 'Insider Risk',
+    targetType: 'Process',
+    owner: 'David Osei',
+    criticality: 'High',
+    identifier: 'David Osei',
+    triaged: true,
+
     title: 'Delayed HR-to-Security notification for departures',
     description: 'HR departure notifications reach the insider risk team 3-5 days after notice is given, reducing the effectiveness of enhanced monitoring.',
     status: 'In Progress',
@@ -1084,7 +1128,13 @@ export const SEED_GAPS = [
   // ── IAM gaps ──
   {
     id: GAP_IDS.g6,
-    objectIds: [OBJ_IDS.mfaPlatform, OBJ_IDS.ssoIdp],
+    productFamily: 'Identity & Access Management',
+    targetType: 'Control',
+    owner: 'Ling Wei',
+    criticality: 'High',
+    identifier: 'Ling Wei',
+    triaged: true,
+
     title: 'Phishing-resistant MFA adoption below target',
     description: '22.5% of users still use legacy TOTP/SMS MFA. Target is 100% FIDO2 adoption by end of Q1 2026. Blockers include field employees with incompatible devices.',
     status: 'In Progress',
@@ -1107,7 +1157,13 @@ export const SEED_GAPS = [
   },
   {
     id: GAP_IDS.g7,
-    objectIds: [OBJ_IDS.pamVault],
+    productFamily: 'Identity & Access Management',
+    targetType: 'Control',
+    owner: 'Carlos Mendes',
+    criticality: 'Critical',
+    identifier: 'Carlos Mendes',
+    triaged: true,
+
     title: 'Orphaned service accounts in PAM vault',
     description: '32 service accounts linked to decommissioned applications remain active in CyberArk. No automated deprovisioning tied to CMDB lifecycle events.',
     status: 'Open',
@@ -1130,7 +1186,13 @@ export const SEED_GAPS = [
   // ── Software Security Services gaps ──
   {
     id: GAP_IDS.g8,
-    objectIds: [OBJ_IDS.secureSdlc, OBJ_IDS.sastPipeline],
+    productFamily: 'Software Security Services',
+    targetType: 'Procedure',
+    owner: 'Emily Nakamura',
+    criticality: 'High',
+    identifier: 'Emily Nakamura',
+    triaged: true,
+
     title: 'Threat modeling not performed for 3 critical services',
     description: 'Payment processing, auth service, and admin portal have not undergone formal threat modeling despite being tier-1 critical.',
     status: 'Open',
@@ -1151,7 +1213,13 @@ export const SEED_GAPS = [
   },
   {
     id: GAP_IDS.g9,
-    objectIds: [OBJ_IDS.dastScanner],
+    productFamily: 'Software Security Services',
+    targetType: 'Control',
+    owner: 'Emily Nakamura',
+    criticality: 'Medium',
+    identifier: 'Emily Nakamura',
+    triaged: true,
+
     title: 'DAST scan coverage limited to 55% of web apps',
     description: 'Authenticated DAST scans only cover 22 of 40 public-facing web applications. SPA frameworks causing scan configuration issues.',
     status: 'In Progress',
@@ -1175,7 +1243,13 @@ export const SEED_GAPS = [
   // ── Vulnerability Management gaps ──
   {
     id: GAP_IDS.g10,
-    objectIds: [OBJ_IDS.patchMgmt, OBJ_IDS.vmScanner],
+    productFamily: 'Vulnerability Management',
+    targetType: 'Control',
+    owner: 'Alex Torres',
+    criticality: 'High',
+    identifier: 'Alex Torres',
+    triaged: true,
+
     title: 'Critical patch SLA breach rate at 8.9%',
     description: '800 of 9000 endpoints missed the 48-hour critical patch window in January. Primary cause: Linux fleet not covered by current automation.',
     status: 'In Progress',
@@ -1199,7 +1273,13 @@ export const SEED_GAPS = [
   // ── BISO gaps ──
   {
     id: GAP_IDS.g11,
-    objectIds: [OBJ_IDS.fourthPartyMonitor, OBJ_IDS.tprmPlatform],
+    productFamily: 'BISO',
+    targetType: 'Control',
+    owner: 'Kwame Adjei',
+    criticality: 'Medium',
+    identifier: 'Kwame Adjei',
+    triaged: true,
+
     title: 'Fourth-party sub-processor mapping incomplete',
     description: 'Only 3 of 10 critical vendors have provided sub-processor inventories. No automated alerting for sub-processor changes.',
     status: 'Open',
@@ -1220,7 +1300,13 @@ export const SEED_GAPS = [
   },
   {
     id: GAP_IDS.g12,
-    objectIds: [OBJ_IDS.sbomRegistry, OBJ_IDS.scaEngine],
+    productFamily: 'BISO',
+    targetType: 'Control',
+    owner: 'Nathan Brooks',
+    criticality: 'Medium',
+    identifier: 'Nathan Brooks',
+    triaged: true,
+
     title: 'SBOM submission rate critically low at 36.8%',
     description: 'Only 35 of 95 production services have current SBOMs. Executive Order compliance deadline at end of Q1 requires 100% coverage.',
     status: 'Open',
@@ -1241,7 +1327,13 @@ export const SEED_GAPS = [
   },
   {
     id: GAP_IDS.g13,
-    objectIds: [OBJ_IDS.vendorDueDiligence],
+    productFamily: 'BISO',
+    targetType: 'Procedure',
+    owner: 'Diana Flores',
+    criticality: 'High',
+    identifier: 'Diana Flores',
+    triaged: true,
+
     title: 'Vendor reassessment backlog — 7 overdue',
     description: '7 high-risk vendors are past their annual reassessment date. Backlog caused by staffing gap in Q4.',
     status: 'In Progress',
@@ -1265,7 +1357,13 @@ export const SEED_GAPS = [
   // ── Cross-family gap (already closed — shows closure flow) ──
   {
     id: GAP_IDS.g14,
-    objectIds: [OBJ_IDS.encryptionAtRest],
+    productFamily: 'Data Protection',
+    targetType: 'Control',
+    owner: 'Marco Ruiz',
+    criticality: 'Critical',
+    identifier: 'Marco Ruiz',
+    triaged: true,
+
     title: 'Azure Key Vault rotation policy not enforced',
     description: 'Automated key rotation was not enabled for 8 Azure Key Vault instances. Manual rotation was happening inconsistently.',
     status: 'Closed',
@@ -1287,6 +1385,86 @@ export const SEED_GAPS = [
     ],
     createdAt: '2025-09-15T10:00:00.000Z',
     updatedAt: '2025-12-01T10:00:00.000Z',
+  },
+
+  // ── Untriaged pipeline items (triage queue demo) ──
+  {
+    id: 'g0000000-0015-4000-b000-000000000015',
+    productFamily: 'Identity & Access Management',
+    targetType: 'Control',
+    owner: '',
+    criticality: 'Medium',
+    identifier: 'Jennifer Liu',
+    triaged: false,
+
+    title: 'Service account credentials hardcoded in CI pipelines',
+    description: 'Found multiple instances of service account credentials stored as plaintext in CI/CD configuration files across 3 repositories. Immediate rotation and vault migration needed.',
+    status: 'Open',
+    healthStatus: 'RED',
+    controlClassification: 'Informal',
+    nistFamilies: [],
+    kpiNumerator: 0,
+    kpiDenominator: 0,
+    compliancePercent: 0,
+    remediationNote: '',
+    expiryDate: '',
+    jiraL1: '',
+    jiraL2: '',
+    history: [{ status: 'Open', note: 'Logged by Jennifer Liu during code review', timestamp: '2026-02-20T09:00:00.000Z' }],
+    createdAt: '2026-02-20T09:00:00.000Z',
+    updatedAt: '2026-02-20T09:00:00.000Z',
+  },
+  {
+    id: 'g0000000-0016-4000-b000-000000000016',
+    productFamily: 'Data Protection',
+    targetType: 'Control',
+    owner: '',
+    criticality: 'Medium',
+    identifier: 'Robert Huang',
+    triaged: false,
+
+    title: 'Cloud storage bucket without lifecycle policies',
+    description: 'Marketing team S3 bucket has no retention or lifecycle policies configured. Contains customer-uploaded assets that may include PII.',
+    status: 'Open',
+    healthStatus: 'RED',
+    controlClassification: 'Informal',
+    nistFamilies: [],
+    kpiNumerator: 0,
+    kpiDenominator: 0,
+    compliancePercent: 0,
+    remediationNote: '',
+    expiryDate: '',
+    jiraL1: '',
+    jiraL2: '',
+    history: [{ status: 'Open', note: 'Logged by Robert Huang from cloud ops audit', timestamp: '2026-02-19T14:00:00.000Z' }],
+    createdAt: '2026-02-19T14:00:00.000Z',
+    updatedAt: '2026-02-19T14:00:00.000Z',
+  },
+  {
+    id: 'g0000000-0017-4000-b000-000000000017',
+    productFamily: 'Software Security Services',
+    targetType: 'Control',
+    owner: '',
+    criticality: 'Medium',
+    identifier: 'Alex Torres',
+    triaged: false,
+
+    title: 'API gateway missing rate limiting on auth endpoints',
+    description: 'The main API gateway does not enforce rate limiting on login and token refresh endpoints, potentially allowing credential stuffing attacks.',
+    status: 'Open',
+    healthStatus: 'RED',
+    controlClassification: 'Informal',
+    nistFamilies: [],
+    kpiNumerator: 0,
+    kpiDenominator: 0,
+    compliancePercent: 0,
+    remediationNote: '',
+    expiryDate: '',
+    jiraL1: '',
+    jiraL2: '',
+    history: [{ status: 'Open', note: 'Logged by Alex Torres from penetration test findings', timestamp: '2026-02-18T11:00:00.000Z' }],
+    createdAt: '2026-02-18T11:00:00.000Z',
+    updatedAt: '2026-02-18T11:00:00.000Z',
   },
 ]
 

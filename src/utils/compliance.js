@@ -31,13 +31,12 @@ export function uuid() {
   return crypto.randomUUID()
 }
 
-// ── Posture Scoring Weights ──
+// ── Posture Scoring Weights (4 signals) ──
 export const POSTURE_WEIGHTS = {
-  health:    { weight: 0.25, label: 'Health',    max: 25 },
-  coverage:  { weight: 0.25, label: 'Coverage',  max: 25 },
-  freshness: { weight: 0.15, label: 'Freshness', max: 15 },
-  gaps:      { weight: 0.20, label: 'Gaps',      max: 20 },
-  maturity:  { weight: 0.15, label: 'Maturity',  max: 15 },
+  health:    { weight: 0.30, label: 'Health',    max: 30 },
+  coverage:  { weight: 0.30, label: 'Coverage',  max: 30 },
+  freshness: { weight: 0.20, label: 'Freshness', max: 20 },
+  maturity:  { weight: 0.20, label: 'Maturity',  max: 20 },
 }
 
 // ── Signal Functions ──
@@ -61,25 +60,6 @@ function freshnessSignal(lastReviewDate) {
   return 10                    // Overdue
 }
 
-function gapSignal(objectGaps) {
-  if (!objectGaps || objectGaps.length === 0) return 100
-  const open = objectGaps.filter(g => g.status !== 'Closed')
-  if (open.length === 0) return 100
-  // Diminishing penalties: each successive gap of the same severity has less impact
-  // This ensures the 4th RED gap still moves the needle instead of being wasted
-  const basePenalties = { RED: 30, AMBER: 20 }
-  const counts = { RED: 0, AMBER: 0, other: 0 }
-  let penalty = 0
-  for (const g of open) {
-    const sev = g.healthStatus === 'RED' ? 'RED' : g.healthStatus === 'AMBER' ? 'AMBER' : 'other'
-    counts[sev]++
-    const base = basePenalties[sev] || 10
-    // Each successive gap of the same severity applies at 1/n of its base
-    penalty += base / counts[sev]
-  }
-  return Math.max(0, Math.round(100 - penalty))
-}
-
 function maturitySignal(mlgAssessment, obj) {
   if (!mlgAssessment && !obj) return 50
   const { score } = computeMLGScore(mlgAssessment, obj)
@@ -89,8 +69,8 @@ function maturitySignal(mlgAssessment, obj) {
 /**
  * Computes a weighted Posture score (0-100) for an object.
  *
- * Inputs (5 signals):
- *   health (25%), coverage (25%), freshness (15%), gaps (20%), maturity (15%)
+ * Inputs (4 signals):
+ *   health (30%), coverage (30%), freshness (20%), maturity (20%)
  *
  * Adjustments:
  *   - Informal classification: 5% score reduction (scales proportionally)
@@ -99,7 +79,7 @@ function maturitySignal(mlgAssessment, obj) {
  *
  * Returns: { ...POSTURE_LEVEL, score, breakdown }
  */
-export function computePosture(obj, { gaps: objGaps = [], mlgAssessment = null } = {}) {
+export function computePosture(obj, { mlgAssessment = null } = {}) {
   const health = obj.healthStatus || 'GREEN'
   const type = obj.type || 'Control'
   const crit = obj.criticality || 'Medium'
@@ -109,7 +89,6 @@ export function computePosture(obj, { gaps: objGaps = [], mlgAssessment = null }
     health:    healthSignal(health),
     coverage:  obj.compliancePercent ?? 0,
     freshness: freshnessSignal(obj.lastReviewDate),
-    gaps:      gapSignal(objGaps),
     maturity:  maturitySignal(mlgAssessment, obj),
   }
 

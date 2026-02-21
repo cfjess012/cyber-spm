@@ -31,8 +31,8 @@ export async function getRemediation(gap, objects) {
   return post('/remediation', { gap, objects: objArray })
 }
 
-export async function prioritizeGaps(gaps, objects) {
-  return post('/prioritize-gaps', { gaps, objects })
+export async function prioritizeGaps(gaps) {
+  return post('/prioritize-gaps', { gaps })
 }
 
 export async function assessMLG(object, currentAnswers) {

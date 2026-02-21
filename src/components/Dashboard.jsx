@@ -47,8 +47,8 @@ function PostureRiver({ data }) {
   }
 
   return (
-    <div className="trending-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-auto block">
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
           <line key={v} x1={PAD} y1={y(v)} x2={W - PAD} y2={y(v)} stroke="#f1f5f9" strokeWidth="1" />
@@ -73,10 +73,10 @@ function PostureRiver({ data }) {
         <text x={PAD - 4} y={y(0.5) + 3} textAnchor="end" fontSize="7.5" fill="#9ca3af" fontFamily="Inter,sans-serif">50%</text>
         <text x={PAD - 4} y={y(0) + 3} textAnchor="end" fontSize="7.5" fill="#9ca3af" fontFamily="Inter,sans-serif">0%</text>
       </svg>
-      <div className="trending-legend">
+      <div className="flex items-center gap-4 mt-2 px-1">
         {layers.slice().reverse().map((l) => (
-          <span key={l} className="trending-legend-item">
-            <span className="trending-legend-dot" style={{ backgroundColor: colors[l] }} />
+          <span key={l} className="flex items-center gap-1.5 text-[0.72rem] text-txt-3 font-medium">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: colors[l] }} />
             {l.charAt(0).toUpperCase() + l.slice(1)}
           </span>
         ))}
@@ -111,8 +111,8 @@ function GapVelocityChart({ data }) {
   const trending = currentGap < prevGap ? 'improving' : currentGap > prevGap ? 'worsening' : 'stable'
 
   return (
-    <div className="trending-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-auto block">
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
           <line key={v} x1={PAD} y1={y(v * maxVal)} x2={W - PAD} y2={y(v * maxVal)} stroke="#f1f5f9" strokeWidth="1" />
@@ -144,10 +144,10 @@ function GapVelocityChart({ data }) {
         <text x={PAD - 4} y={y(maxVal) + 3} textAnchor="end" fontSize="7.5" fill="#9ca3af" fontFamily="Inter,sans-serif">{maxVal}</text>
         <text x={PAD - 4} y={y(0) + 3} textAnchor="end" fontSize="7.5" fill="#9ca3af" fontFamily="Inter,sans-serif">0</text>
       </svg>
-      <div className="trending-legend">
-        <span className="trending-legend-item"><span className="trending-legend-dot" style={{ backgroundColor: '#dc2626' }} />Opened</span>
-        <span className="trending-legend-item"><span className="trending-legend-dot" style={{ backgroundColor: '#16a34a' }} />Closed</span>
-        <span className="trending-legend-item" style={{ marginLeft: 'auto', fontWeight: 700, color: trending === 'improving' ? '#16a34a' : '#dc2626' }}>
+      <div className="flex items-center gap-4 mt-2 px-1">
+        <span className="flex items-center gap-1.5 text-[0.72rem] text-txt-3 font-medium"><span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#dc2626' }} />Intake</span>
+        <span className="flex items-center gap-1.5 text-[0.72rem] text-txt-3 font-medium"><span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#16a34a' }} />Resolved</span>
+        <span className="flex items-center gap-1.5 text-[0.72rem] text-txt-3 font-medium" style={{ marginLeft: 'auto', fontWeight: 700, color: trending === 'improving' ? '#16a34a' : '#dc2626' }}>
           {trending === 'improving' ? 'Backlog shrinking' : trending === 'worsening' ? 'Backlog growing' : 'Stable'}
         </span>
       </div>
@@ -198,8 +198,8 @@ function ReviewHeatmap({ data }) {
   const [tooltip, setTooltip] = useState(null)
 
   return (
-    <div className="heatmap-container" style={{ position: 'relative' }}>
-      <svg viewBox={`0 0 ${svgW} ${svgH}`} preserveAspectRatio="xMidYMid meet" className="heatmap-svg">
+    <div data-heatmap style={{ position: 'relative' }}>
+      <svg viewBox={`0 0 ${svgW} ${svgH}`} preserveAspectRatio="xMidYMid meet" className="w-full h-auto block">
         {/* Day labels */}
         {dayLabels.map((label, i) => (
           label && <text key={i} x="24" y={i * step + cellSize + 1} textAnchor="end" fontSize="7" fill="#9ca3af" fontFamily="Inter,sans-serif">{label}</text>
@@ -219,7 +219,7 @@ function ReviewHeatmap({ data }) {
                 fill={cellColor(d)}
                 onMouseEnter={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect()
-                  const parent = e.currentTarget.closest('.heatmap-container').getBoundingClientRect()
+                  const parent = e.currentTarget.closest('[data-heatmap]').getBoundingClientRect()
                   setTooltip({ ...d, _x: rect.left - parent.left + rect.width / 2, _y: rect.top - parent.top - 8 })
                 }}
                 onMouseLeave={() => setTooltip(null)}
@@ -246,20 +246,20 @@ function ReviewHeatmap({ data }) {
         })()}
       </svg>
       {tooltip && (
-        <div className="heatmap-tooltip" style={{ position: 'absolute', left: `${tooltip._x || 0}px`, top: `${tooltip._y || 0}px` }}>
-          <strong>{tooltip.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong>
+        <div className="absolute bg-[#1e293b] text-white text-[0.72rem] rounded-lg px-3 py-2 -translate-x-1/2 -translate-y-full flex flex-col gap-0.5 pointer-events-none shadow-lg z-50" style={{ position: 'absolute', left: `${tooltip._x || 0}px`, top: `${tooltip._y || 0}px` }}>
+          <strong className="font-bold">{tooltip.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</strong>
           <span>{tooltip.count} object{tooltip.count !== 1 ? 's' : ''} updated</span>
           {tooltip.avgCompliance !== null && <span>Avg compliance: {tooltip.avgCompliance}%</span>}
-          {tooltip.gapsOpened > 0 && <span>{tooltip.gapsOpened} gap{tooltip.gapsOpened !== 1 ? 's' : ''} opened</span>}
+          {tooltip.gapsOpened > 0 && <span>{tooltip.gapsOpened} pipeline item{tooltip.gapsOpened !== 1 ? 's' : ''} created</span>}
         </div>
       )}
       {/* Legend */}
-      <div className="heatmap-legend">
-        <span className="heatmap-legend-label">Less</span>
+      <div className="flex items-center gap-1.5 mt-2 justify-center">
+        <span className="text-[0.68rem] text-txt-3">Less</span>
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
-          <span key={v} className="heatmap-legend-cell" style={{ backgroundColor: v === 0 ? '#f1f5f9' : `rgba(22,163,74,${0.3 + v * 0.7})` }} />
+          <span key={v} className="w-3 h-3 rounded-sm" style={{ backgroundColor: v === 0 ? '#f1f5f9' : `rgba(22,163,74,${0.3 + v * 0.7})` }} />
         ))}
-        <span className="heatmap-legend-label">More</span>
+        <span className="text-[0.68rem] text-txt-3">More</span>
       </div>
     </div>
   )
@@ -298,6 +298,7 @@ export default function Dashboard({ onNavigate }) {
   const inProgressGaps = gaps.filter((g) => g.status === 'In Progress').length
   const closedGaps = gaps.filter((g) => g.status === 'Closed').length
   const totalGaps = gaps.length
+  const untriagedCount = gaps.filter((g) => !g.triaged).length
 
   const overdueActions = standupItems.filter(
     (s) => s.status === 'Open' && s.dueDate && new Date(s.dueDate) < new Date()
@@ -423,40 +424,25 @@ export default function Dashboard({ onNavigate }) {
       const amberCount = familyObjs.filter((o) => o.healthStatus === 'AMBER').length
       const greenCount = familyObjs.filter((o) => o.healthStatus === 'GREEN').length
       const blueCount = familyObjs.filter((o) => o.healthStatus === 'BLUE').length
-      const familyGaps = gaps.filter((g) => {
-        const ids = g.objectIds || []
-        return ids.some((id) => familyObjs.find((o) => o.id === id)) && g.status !== 'Closed'
-      }).length
+      const remItems = familyObjs.reduce((sum, o) =>
+        sum + (o.remediationItems || []).filter(i => i.status !== 'Resolved').length, 0)
       // Avg maturity for assessed objects in this family
       const assessed = familyObjs.filter((o) => mlgAssessments[o.id])
       const avgMaturity = assessed.length
         ? Math.round(assessed.reduce((s, o) => s + computeMLGScore(mlgAssessments[o.id], o).score, 0) / assessed.length * 10) / 10
         : null
       const assessedCount = assessed.length
-      return { family, count, avgComp, formalPct, redCount, amberCount, greenCount, blueCount, openGaps: familyGaps, avgMaturity, assessedCount }
+      return { family, count, avgComp, formalPct, redCount, amberCount, greenCount, blueCount, remItems, avgMaturity, assessedCount }
     })
-  }, [objects, gaps, mlgAssessments])
+  }, [objects, mlgAssessments])
 
   // ── Owner Portfolio Roll-up ──
   const ownerData = useMemo(() => {
     const ownerMap = {}
     objects.forEach((o) => {
       const owner = o.owner || 'Unassigned'
-      if (!ownerMap[owner]) ownerMap[owner] = { owner, objects: [], gapCount: 0 }
+      if (!ownerMap[owner]) ownerMap[owner] = { owner, objects: [] }
       ownerMap[owner].objects.push(o)
-    })
-    // Count open gaps per owner
-    gaps.forEach((g) => {
-      if (g.status === 'Closed') return
-      const ids = g.objectIds || []
-      const owners = new Set()
-      ids.forEach((id) => {
-        const obj = objects.find((o) => o.id === id)
-        if (obj) owners.add(obj.owner || 'Unassigned')
-      })
-      owners.forEach((owner) => {
-        if (ownerMap[owner]) ownerMap[owner].gapCount++
-      })
     })
     return Object.values(ownerMap)
       .map((d) => {
@@ -464,6 +450,8 @@ export default function Dashboard({ onNavigate }) {
         const avgMaturity = assessed.length
           ? Math.round(assessed.reduce((s, o) => s + computeMLGScore(mlgAssessments[o.id], o).score, 0) / assessed.length * 10) / 10
           : null
+        const remCount = d.objects.reduce((sum, o) =>
+          sum + (o.remediationItems || []).filter(i => i.status !== 'Resolved').length, 0)
         return {
           owner: d.owner,
           count: d.objects.length,
@@ -472,19 +460,19 @@ export default function Dashboard({ onNavigate }) {
           amberCount: d.objects.filter((o) => o.healthStatus === 'AMBER').length,
           greenCount: d.objects.filter((o) => o.healthStatus === 'GREEN').length,
           blueCount: d.objects.filter((o) => o.healthStatus === 'BLUE').length,
-          gapCount: d.gapCount,
+          remCount,
           avgMaturity,
         }
       })
-      .sort((a, b) => b.redCount - a.redCount || b.amberCount - a.amberCount || b.gapCount - a.gapCount)
-  }, [objects, gaps, mlgAssessments])
+      .sort((a, b) => b.redCount - a.redCount || b.amberCount - a.amberCount || b.remCount - a.remCount)
+  }, [objects, mlgAssessments])
 
   return (
-    <div className="dashboard">
-      <div className="page-header">
+    <div>
+      <div className="flex justify-between items-start gap-4 mb-8">
         <div>
-          <h1>CISO Dashboard</h1>
-          <p className="page-subtitle">Security product management overview</p>
+          <h1 className="text-[1.75rem] font-[800] tracking-tight text-txt leading-tight">CISO Dashboard</h1>
+          <p className="text-txt-3 text-[0.88rem] mt-1 tracking-tight">Security product management overview</p>
         </div>
         <AiButton onClick={handleGetInsights} loading={aiLoading}>
           AI Insights
@@ -502,100 +490,122 @@ export default function Dashboard({ onNavigate }) {
       </AiSlidePanel>
 
       {/* KPI Cards */}
-      <div className="kpi-grid">
-        <div className="kpi-card" onClick={() => onNavigate('objects')} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate('objects') } }} aria-label={`Total Objects: ${totalObjects}, ${activeObjects} active`}>
-          <div className="kpi-icon blue">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 flex items-start gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer" onClick={() => onNavigate('objects')} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate('objects') } }} aria-label={`Total Objects: ${totalObjects}, ${activeObjects} active`}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-blue-bg text-brand">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
             </svg>
           </div>
-          <div className="kpi-data">
-            <span className="kpi-value">{totalObjects}</span>
-            <span className="kpi-label">Total Objects</span>
+          <div className="flex flex-col">
+            <span className="text-2xl font-[800] tracking-tight text-txt">{totalObjects}</span>
+            <span className="text-[0.72rem] font-semibold text-txt-3 uppercase tracking-wider mt-0.5">Total Objects</span>
           </div>
-          <span className="kpi-detail">{activeObjects} active</span>
+          <span className="text-[0.72rem] text-txt-3 font-medium mt-auto">{activeObjects} active</span>
         </div>
 
-        <div className="kpi-card" style={{ cursor: 'default' }}>
-          <div className="kpi-icon green">
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 flex items-start gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5" style={{ cursor: 'default' }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-green-bg text-green">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </div>
-          <div className="kpi-data">
-            <span className="kpi-value">{avgCompliance}%</span>
-            <span className="kpi-label">Avg Compliance</span>
+          <div className="flex flex-col">
+            <span className="text-2xl font-[800] tracking-tight text-txt">{avgCompliance}%</span>
+            <span className="text-[0.72rem] font-semibold text-txt-3 uppercase tracking-wider mt-0.5">Avg Compliance</span>
           </div>
-          <span className="kpi-detail">across all objects</span>
+          <span className="text-[0.72rem] text-txt-3 font-medium mt-auto">across all objects</span>
         </div>
 
-        <div className="kpi-card" onClick={() => onNavigate('onelist')} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate('onelist') } }} aria-label={`Open Gaps: ${openGaps}, ${inProgressGaps} in progress`}>
-          <div className="kpi-icon orange">
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 flex items-start gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer" onClick={() => onNavigate('onelist')} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate('onelist') } }} aria-label={`Pipeline Items: ${openGaps}, ${inProgressGaps} in progress`}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-amber-bg text-amber">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
             </svg>
           </div>
-          <div className="kpi-data">
-            <span className="kpi-value">{openGaps}</span>
-            <span className="kpi-label">Open Gaps</span>
+          <div className="flex flex-col">
+            <span className="text-2xl font-[800] tracking-tight text-txt">{openGaps}</span>
+            <span className="text-[0.72rem] font-semibold text-txt-3 uppercase tracking-wider mt-0.5">Pipeline Items</span>
           </div>
-          <span className="kpi-detail">{inProgressGaps} in progress</span>
+          <span className="text-[0.72rem] text-txt-3 font-medium mt-auto">{inProgressGaps} in progress{untriagedCount > 0 ? ` · ${untriagedCount} to triage` : ''}</span>
         </div>
 
-        <div className="kpi-card" style={{ cursor: 'default' }}>
-          <div className={`kpi-icon ${staleCount > 0 ? 'red' : 'green'}`}>
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 flex items-start gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5" style={{ cursor: 'default' }}>
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${staleCount > 0 ? 'bg-red-bg text-red' : 'bg-green-bg text-green'}`}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <polyline points="12 6 12 12 16 14"/>
             </svg>
           </div>
-          <div className="kpi-data">
-            <span className="kpi-value">{staleCount}</span>
-            <span className="kpi-label">Stale Objects</span>
+          <div className="flex flex-col">
+            <span className="text-2xl font-[800] tracking-tight text-txt">{staleCount}</span>
+            <span className="text-[0.72rem] font-semibold text-txt-3 uppercase tracking-wider mt-0.5">Stale Objects</span>
           </div>
-          <span className="kpi-detail">&gt;90 days since review</span>
+          <span className="text-[0.72rem] text-txt-3 font-medium mt-auto">&gt;90 days since review</span>
         </div>
       </div>
 
-      <div className="dashboard-grid">
-        {/* Health Distribution */}
-        <div className="dash-card">
-          <div className="dash-card-header">
-            <h3>Health Distribution</h3>
-            <span className="dash-card-badge">{totalObjects} objects</span>
+      {/* Triage Alert */}
+      {untriagedCount > 0 && (
+        <div className="bg-amber-bg/50 backdrop-blur-xl rounded-xl border border-amber/10 p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span className="flex-1 text-[0.85rem] text-txt">
+              <strong>{untriagedCount} pipeline item{untriagedCount !== 1 ? 's' : ''}</strong> awaiting triage
+            </span>
+            <button
+              className="bg-transparent border-none text-amber cursor-pointer font-sans text-[0.82rem] font-semibold hover:text-amber/80 transition-colors p-0"
+              onClick={() => onNavigate('onelist')}
+            >
+              View queue &rarr;
+            </button>
           </div>
-          <div className="health-bars">
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Health Distribution */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Health Distribution</h3>
+            <span className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">{totalObjects} objects</span>
+          </div>
+          <div className="flex flex-col gap-3">
             {healthDist.map((h) => (
-              <div key={h.id} className="health-bar-row">
-                <div className="health-bar-label">
-                  <span className="health-dot" style={{ backgroundColor: h.color }} aria-hidden="true" />
-                  <span>{h.label}</span>
+              <div key={h.id} className="flex items-center gap-3">
+                <div className="flex items-center gap-2 w-[80px] shrink-0">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: h.color }} aria-hidden="true" />
+                  <span className="text-[0.82rem] text-txt-2 font-medium">{h.label}</span>
                 </div>
-                <div className="health-bar-track">
+                <div className="flex-1 h-2 rounded-full bg-border-light overflow-hidden">
                   <div
-                    className="health-bar-fill"
+                    className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: totalObjects ? `${(h.count / totalObjects) * 100}%` : '0%',
                       backgroundColor: h.color,
                     }}
                   />
                 </div>
-                <span className="health-bar-count">{h.count}</span>
+                <span className="text-[0.82rem] font-semibold text-txt w-6 text-right">{h.count}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Gap Closure & CISO Trending */}
-        <div className="dash-card">
-          <div className="dash-card-header">
-            <h3>Gap Summary</h3>
-            <span className="dash-card-badge">{totalGaps} total</span>
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Pipeline Summary</h3>
+            <span className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">{totalGaps} total</span>
           </div>
-          <div className="gap-summary-visual">
-            <div className="gap-donut-section">
-              <div className="gap-donut">
-                <svg viewBox="0 0 100 100">
+          <div className="flex items-center gap-6">
+            <div className="shrink-0">
+              <div className="w-[120px] h-[120px] relative">
+                <svg viewBox="0 0 100 100" className="w-full h-full">
                   {totalGaps > 0 ? (
                     <>
                       <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="12" />
@@ -631,96 +641,96 @@ export default function Dashboard({ onNavigate }) {
                     <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="12" />
                   )}
                 </svg>
-                <div className="gap-donut-center">
-                  <span className="gap-donut-value">{recentlyClosed}</span>
-                  <span className="gap-donut-label">closed (30d)</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xl font-[800] text-txt">{recentlyClosed}</span>
+                  <span className="text-[0.62rem] text-txt-3 font-medium">closed (30d)</span>
                 </div>
               </div>
             </div>
-            <div className="gap-legend">
-              <div className="gap-legend-item">
-                <span className="gap-legend-dot" style={{ backgroundColor: '#dc2626' }} />
-                <span>Open</span>
-                <strong>{openGaps}</strong>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#dc2626' }} />
+                <span className="text-[0.82rem] text-txt-2">Open</span>
+                <strong className="font-[700] text-txt ml-auto">{openGaps}</strong>
               </div>
-              <div className="gap-legend-item">
-                <span className="gap-legend-dot" style={{ backgroundColor: '#d97706' }} />
-                <span>In Progress</span>
-                <strong>{inProgressGaps}</strong>
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#d97706' }} />
+                <span className="text-[0.82rem] text-txt-2">In Progress</span>
+                <strong className="font-[700] text-txt ml-auto">{inProgressGaps}</strong>
               </div>
-              <div className="gap-legend-item">
-                <span className="gap-legend-dot" style={{ backgroundColor: '#16a34a' }} />
-                <span>Closed</span>
-                <strong>{closedGaps}</strong>
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#16a34a' }} />
+                <span className="text-[0.82rem] text-txt-2">Closed</span>
+                <strong className="font-[700] text-txt ml-auto">{closedGaps}</strong>
               </div>
             </div>
           </div>
         </div>
 
         {/* Governance Maturity Distribution */}
-        <div className="dash-card">
-          <div className="dash-card-header">
-            <h3>Governance Maturity</h3>
-            <span className="dash-card-badge">{totalObjects - maturityDist.notAssessed.count} assessed</span>
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Governance Maturity</h3>
+            <span className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">{totalObjects - maturityDist.notAssessed.count} assessed</span>
           </div>
-          <div className="health-bars">
+          <div className="flex flex-col gap-3">
             {maturityDist.tiers.map((t) => (
-              <div key={t.id} className="health-bar-row">
-                <div className="health-bar-label">
-                  <span className="health-dot" style={{ backgroundColor: t.color }} />
-                  <span>{t.label}</span>
+              <div key={t.id} className="flex items-center gap-3">
+                <div className="flex items-center gap-2 w-[80px] shrink-0">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
+                  <span className="text-[0.82rem] text-txt-2 font-medium">{t.label}</span>
                 </div>
-                <div className="health-bar-track">
+                <div className="flex-1 h-2 rounded-full bg-border-light overflow-hidden">
                   <div
-                    className="health-bar-fill"
+                    className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: totalObjects ? `${(t.count / totalObjects) * 100}%` : '0%',
                       backgroundColor: t.color,
                     }}
                   />
                 </div>
-                <span className="health-bar-count">{t.count}</span>
+                <span className="text-[0.82rem] font-semibold text-txt w-6 text-right">{t.count}</span>
               </div>
             ))}
             {maturityDist.notAssessed.count > 0 && (
-              <div className="health-bar-row">
-                <div className="health-bar-label">
-                  <span className="health-dot" style={{ backgroundColor: '#94a3b8' }} />
-                  <span>N/A</span>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 w-[80px] shrink-0">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: '#94a3b8' }} />
+                  <span className="text-[0.82rem] text-txt-2 font-medium">N/A</span>
                 </div>
-                <div className="health-bar-track">
+                <div className="flex-1 h-2 rounded-full bg-border-light overflow-hidden">
                   <div
-                    className="health-bar-fill"
+                    className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${(maturityDist.notAssessed.count / totalObjects) * 100}%`,
                       backgroundColor: '#94a3b8',
                     }}
                   />
                 </div>
-                <span className="health-bar-count">{maturityDist.notAssessed.count}</span>
+                <span className="text-[0.82rem] font-semibold text-txt w-6 text-right">{maturityDist.notAssessed.count}</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Recent Activity */}
-        <div className="dash-card full-width">
-          <div className="dash-card-header">
-            <h3>Recently Updated Objects</h3>
-            <button className="link-btn" onClick={() => onNavigate('objects')}>
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 md:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Recently Updated Objects</h3>
+            <button className="bg-transparent border-none text-brand cursor-pointer font-sans text-[0.82rem] font-semibold hover:text-brand-deep transition-colors p-0" onClick={() => onNavigate('objects')}>
               View all
             </button>
           </div>
           {recent.length === 0 ? (
-            <div className="empty-state">
+            <div className="text-center py-8 text-txt-3 text-[0.85rem]">
               <p>No objects in the registry yet.</p>
-              <button className="btn-primary small" onClick={() => onNavigate('objects')}>
+              <button className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-4 py-2 text-[0.82rem] font-semibold cursor-pointer font-sans shadow-[0_2px_8px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 active:scale-[0.97] transition-all duration-200" onClick={() => onNavigate('objects')}>
                 Add your first object
               </button>
             </div>
           ) : (
-            <div className="recent-table">
-              <div className="recent-row recent-header">
+            <div className="flex flex-col">
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-2.5 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 border-b border-border-light">
                 <span>Name</span>
                 <span>Health</span>
                 <span>Compliance</span>
@@ -732,21 +742,21 @@ export default function Dashboard({ onNavigate }) {
                 return (
                   <div
                     key={obj.id}
-                    className="recent-row"
+                    className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-3 border-b border-border-light last:border-0 cursor-pointer transition-colors hover:bg-brand/[0.03]"
                     onClick={() => onNavigate('object-detail', obj.id)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate('object-detail', obj.id) } }}
                   >
-                    <span className="recent-name">{obj.listName || 'Untitled'}</span>
+                    <span className="text-[0.85rem] font-semibold text-txt truncate">{obj.listName || 'Untitled'}</span>
                     <span>
-                      <span className="health-tag" style={{ backgroundColor: hs.bg, color: hs.color }}>
+                      <span className="inline-flex text-[0.68rem] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: hs.bg, color: hs.color }}>
                         {hs.label}
                       </span>
                     </span>
-                    <span>{obj.compliancePercent}%</span>
-                    <span className="text-muted">{obj.owner || '—'}</span>
-                    <span className="text-muted">{formatDate(obj.updatedAt)}</span>
+                    <span className="text-[0.82rem] text-txt font-medium">{obj.compliancePercent}%</span>
+                    <span className="text-[0.82rem] text-txt-3">{obj.owner || '—'}</span>
+                    <span className="text-[0.82rem] text-txt-3">{formatDate(obj.updatedAt)}</span>
                   </div>
                 )
               })}
@@ -756,17 +766,17 @@ export default function Dashboard({ onNavigate }) {
 
         {/* Overdue Actions */}
         {overdueActions > 0 && (
-          <div className="dash-card full-width alert-card">
-            <div className="alert-content">
+          <div className="md:col-span-2 bg-red-bg/50 backdrop-blur-xl rounded-xl border border-red/10 p-4">
+            <div className="flex items-center gap-3">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
-              <span>
+              <span className="flex-1 text-[0.85rem] text-txt">
                 <strong>{overdueActions} overdue</strong> standup action{overdueActions !== 1 ? 's' : ''} require attention
               </span>
-              <button className="link-btn" onClick={() => onNavigate('standup')}>
+              <button className="bg-transparent border-none text-brand cursor-pointer font-sans text-[0.82rem] font-semibold hover:text-brand-deep transition-colors p-0" onClick={() => onNavigate('standup')}>
                 View actions
               </button>
             </div>
@@ -776,33 +786,33 @@ export default function Dashboard({ onNavigate }) {
 
       {/* ═══ Trending Section ═══ */}
       {totalObjects > 0 && (
-        <div className="trending-section">
-          <h2 className="trending-section-title">Trending</h2>
+        <div className="mb-8">
+          <h2 className="text-[1.25rem] font-[800] tracking-tight text-txt mb-4">Trending</h2>
 
-          <div className="trending-grid">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* ── Posture River ── */}
-            <div className="dash-card">
-              <div className="dash-card-header">
-                <h3>Security Posture</h3>
-                <span className="dash-card-badge">12 weeks</span>
+            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Security Posture</h3>
+                <span className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">12 weeks</span>
               </div>
               <PostureRiver data={postureData} />
             </div>
 
             {/* ── Gap Velocity ── */}
-            <div className="dash-card">
-              <div className="dash-card-header">
-                <h3>Gap Velocity</h3>
-                <span className="dash-card-badge">opened vs closed</span>
+            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Pipeline Velocity</h3>
+                <span className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">intake vs resolved</span>
               </div>
               <GapVelocityChart data={gapVelocity} />
             </div>
 
             {/* ── Review Heatmap ── */}
-            <div className="dash-card full-width">
-              <div className="dash-card-header">
-                <h3>Review Activity</h3>
-                <span className="dash-card-badge">last 90 days</span>
+            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 md:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Review Activity</h3>
+                <span className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">last 90 days</span>
               </div>
               <ReviewHeatmap data={heatmapData} />
             </div>
@@ -812,80 +822,80 @@ export default function Dashboard({ onNavigate }) {
 
       {/* ═══ Coverage Matrix ═══ */}
       {totalObjects > 0 && (
-        <div className="trending-section">
-          <h2 className="trending-section-title">Coverage Matrix</h2>
-          <div className="dash-card full-width">
-            <div className="coverage-table-wrapper scroll-hint-wrapper">
-              <table className="coverage-table">
-                <thead>
+        <div className="mb-8">
+          <h2 className="text-[1.25rem] font-[800] tracking-tight text-txt mb-4">Coverage Matrix</h2>
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 md:col-span-2">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-[0.82rem]">
+                <thead className="bg-subtle/80 backdrop-blur-sm">
                   <tr>
-                    <th>Product Family</th>
-                    <th>Objects</th>
-                    <th>Avg Compliance</th>
-                    <th>Formal %</th>
-                    <th>Health</th>
-                    <th>Maturity</th>
-                    <th>Open Gaps</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Product Family</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Objects</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Avg Compliance</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Formal %</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Health</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Maturity</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Rem. Items</th>
                   </tr>
                 </thead>
                 <tbody>
                   {coverageData.map((row) => (
-                    <tr key={row.family} className={row.count === 0 ? 'coverage-empty' : ''}>
-                      <td className="coverage-family">{row.family}</td>
-                      <td>
+                    <tr key={row.family} className={`border-b border-border-light last:border-0 hover:bg-brand/[0.02] transition-colors ${row.count === 0 ? 'opacity-40' : ''}`}>
+                      <td className="px-4 py-3 text-[0.85rem] font-semibold text-txt">{row.family}</td>
+                      <td className="px-4 py-3">
                         {row.count === 0 ? (
-                          <span className="coverage-blind-spot">No coverage</span>
+                          <span className="text-[0.72rem] text-red font-medium italic">No coverage</span>
                         ) : (
-                          <span className="coverage-count">{row.count}</span>
+                          <span className="text-[0.85rem] font-semibold text-txt">{row.count}</span>
                         )}
                       </td>
-                      <td>
+                      <td className="px-4 py-3">
                         {row.count > 0 && (
-                          <div className="coverage-bar-cell">
-                            <div className="coverage-bar-track">
+                          <div className="flex items-center gap-2">
+                            <div className="w-[60px] h-[5px] rounded-full bg-border-light overflow-hidden">
                               <div
-                                className="coverage-bar-fill"
+                                className="h-full rounded-full transition-all duration-500"
                                 style={{
                                   width: `${row.avgComp}%`,
                                   backgroundColor: row.avgComp >= 80 ? '#16a34a' : row.avgComp >= 50 ? '#d97706' : '#dc2626',
                                 }}
                               />
                             </div>
-                            <span className="coverage-bar-label">{row.avgComp}%</span>
+                            <span className="text-[0.82rem] font-semibold">{row.avgComp}%</span>
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td className="px-4 py-3">
                         {row.count > 0 && (
-                          <span className={`coverage-formal ${row.formalPct >= 75 ? 'high' : row.formalPct >= 40 ? 'mid' : 'low'}`}>
+                          <span className={`text-[0.82rem] font-semibold ${row.formalPct >= 75 ? 'text-green' : row.formalPct >= 40 ? 'text-amber' : 'text-red'}`}>
                             {row.formalPct}%
                           </span>
                         )}
                       </td>
-                      <td>
+                      <td className="px-4 py-3">
                         {row.count > 0 && (
-                          <div className="coverage-health-dots">
-                            {row.redCount > 0 && <span className="coverage-dot red">{row.redCount}</span>}
-                            {row.amberCount > 0 && <span className="coverage-dot amber">{row.amberCount}</span>}
-                            {row.greenCount > 0 && <span className="coverage-dot green">{row.greenCount}</span>}
-                            {row.blueCount > 0 && <span className="coverage-dot blue">{row.blueCount}</span>}
+                          <div className="flex items-center gap-1.5">
+                            {row.redCount > 0 && <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-red-bg text-red">{row.redCount}</span>}
+                            {row.amberCount > 0 && <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-bg text-amber">{row.amberCount}</span>}
+                            {row.greenCount > 0 && <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-green-bg text-green">{row.greenCount}</span>}
+                            {row.blueCount > 0 && <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-bg text-brand">{row.blueCount}</span>}
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td className="px-4 py-3">
                         {row.avgMaturity != null ? (
-                          <span className="coverage-bar-label" style={{ color: row.avgMaturity >= 16 ? '#2563eb' : row.avgMaturity >= 11 ? '#16a34a' : row.avgMaturity >= 6 ? '#ea580c' : '#dc2626' }}>
+                          <span className="text-[0.82rem] font-semibold" style={{ color: row.avgMaturity >= 16 ? '#2563eb' : row.avgMaturity >= 11 ? '#16a34a' : row.avgMaturity >= 6 ? '#ea580c' : '#dc2626' }}>
                             {row.avgMaturity}/20
                           </span>
                         ) : row.count > 0 ? (
-                          <span className="text-muted">—</span>
+                          <span className="text-txt-3">—</span>
                         ) : null}
                       </td>
-                      <td>
-                        {row.openGaps > 0 ? (
-                          <span className="coverage-gaps">{row.openGaps}</span>
+                      <td className="px-4 py-3">
+                        {row.remItems > 0 ? (
+                          <span className="text-red font-bold">{row.remItems}</span>
                         ) : row.count > 0 ? (
-                          <span className="text-muted">0</span>
+                          <span className="text-txt-3">0</span>
                         ) : null}
                       </td>
                     </tr>
@@ -899,62 +909,62 @@ export default function Dashboard({ onNavigate }) {
 
       {/* ═══ Owner Portfolio ═══ */}
       {ownerData.length > 0 && (
-        <div className="trending-section">
-          <h2 className="trending-section-title">Owner Portfolio</h2>
-          <div className="dash-card full-width">
-            <div className="coverage-table-wrapper">
-              <table className="coverage-table">
-                <thead>
+        <div className="mb-8">
+          <h2 className="text-[1.25rem] font-[800] tracking-tight text-txt mb-4">Owner Portfolio</h2>
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 md:col-span-2">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-[0.82rem]">
+                <thead className="bg-subtle/80 backdrop-blur-sm">
                   <tr>
-                    <th>Owner</th>
-                    <th>Objects</th>
-                    <th>Avg Compliance</th>
-                    <th>Health</th>
-                    <th>Maturity</th>
-                    <th>Open Gaps</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Owner</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Objects</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Avg Compliance</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Health</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Maturity</th>
+                    <th className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light">Rem. Items</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ownerData.map((row) => (
-                    <tr key={row.owner}>
-                      <td className="coverage-family">{row.owner}</td>
-                      <td><span className="coverage-count">{row.count}</span></td>
-                      <td>
-                        <div className="coverage-bar-cell">
-                          <div className="coverage-bar-track">
+                    <tr key={row.owner} className="border-b border-border-light last:border-0 hover:bg-brand/[0.02] transition-colors">
+                      <td className="px-4 py-3 text-[0.85rem] font-semibold text-txt">{row.owner}</td>
+                      <td className="px-4 py-3"><span className="text-[0.85rem] font-semibold text-txt">{row.count}</span></td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-[60px] h-[5px] rounded-full bg-border-light overflow-hidden">
                             <div
-                              className="coverage-bar-fill"
+                              className="h-full rounded-full transition-all duration-500"
                               style={{
                                 width: `${row.avgComp}%`,
                                 backgroundColor: row.avgComp >= 80 ? '#16a34a' : row.avgComp >= 50 ? '#d97706' : '#dc2626',
                               }}
                             />
                           </div>
-                          <span className="coverage-bar-label">{row.avgComp}%</span>
+                          <span className="text-[0.82rem] font-semibold">{row.avgComp}%</span>
                         </div>
                       </td>
-                      <td>
-                        <div className="coverage-health-dots">
-                          {row.redCount > 0 && <span className="coverage-dot red">{row.redCount}</span>}
-                          {row.amberCount > 0 && <span className="coverage-dot amber">{row.amberCount}</span>}
-                          {row.greenCount > 0 && <span className="coverage-dot green">{row.greenCount}</span>}
-                          {row.blueCount > 0 && <span className="coverage-dot blue">{row.blueCount}</span>}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {row.redCount > 0 && <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-red-bg text-red">{row.redCount}</span>}
+                          {row.amberCount > 0 && <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-amber-bg text-amber">{row.amberCount}</span>}
+                          {row.greenCount > 0 && <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-green-bg text-green">{row.greenCount}</span>}
+                          {row.blueCount > 0 && <span className="text-[0.65rem] font-bold px-1.5 py-0.5 rounded-full bg-blue-bg text-brand">{row.blueCount}</span>}
                         </div>
                       </td>
-                      <td>
+                      <td className="px-4 py-3">
                         {row.avgMaturity != null ? (
-                          <span className="coverage-bar-label" style={{ color: row.avgMaturity >= 16 ? '#2563eb' : row.avgMaturity >= 11 ? '#16a34a' : row.avgMaturity >= 6 ? '#ea580c' : '#dc2626' }}>
+                          <span className="text-[0.82rem] font-semibold" style={{ color: row.avgMaturity >= 16 ? '#2563eb' : row.avgMaturity >= 11 ? '#16a34a' : row.avgMaturity >= 6 ? '#ea580c' : '#dc2626' }}>
                             {row.avgMaturity}/20
                           </span>
                         ) : (
-                          <span className="text-muted">—</span>
+                          <span className="text-txt-3">—</span>
                         )}
                       </td>
-                      <td>
-                        {row.gapCount > 0 ? (
-                          <span className="coverage-gaps">{row.gapCount}</span>
+                      <td className="px-4 py-3">
+                        {row.remCount > 0 ? (
+                          <span className="text-red font-bold">{row.remCount}</span>
                         ) : (
-                          <span className="text-muted">0</span>
+                          <span className="text-txt-3">0</span>
                         )}
                       </td>
                     </tr>

@@ -98,6 +98,12 @@ function trimGap(gap) {
     description: gap.description,
     status: gap.status,
     healthStatus: gap.healthStatus,
+    productFamily: gap.productFamily,
+    targetType: gap.targetType,
+    owner: gap.owner,
+    identifier: gap.identifier,
+    triaged: gap.triaged,
+    criticality: gap.criticality,
     controlClassification: gap.controlClassification,
     nistFamilies: gap.nistFamilies,
     kpiNumerator: gap.kpiNumerator,
@@ -196,27 +202,14 @@ app.post('/api/ai/remediation', async (req, res) => {
   }
 })
 
-// 5. Prioritize gaps
+// 5. Prioritize pipeline items
 app.post('/api/ai/prioritize-gaps', async (req, res) => {
   try {
-    const { gaps = [], objects = [] } = req.body
-    // Enrich gaps with linked object names
-    const enriched = gaps
+    const { gaps = [] } = req.body
+    const trimmed = gaps
       .filter(g => g.status !== 'Closed')
-      .map(g => {
-        const ids = g.objectIds || (g.objectId ? [g.objectId] : [])
-        const linkedNames = ids
-          .map(id => objects.find(o => o.id === id)?.listName || 'Unknown')
-          .join(', ')
-        return {
-          ...trimGap(g),
-          linkedObjects: linkedNames,
-          linkedObjectCriticality: ids
-            .map(id => objects.find(o => o.id === id)?.criticality || 'Unknown')
-            .join(', '),
-        }
-      })
-    const content = await chat(SYSTEM_PRIORITIZE, enriched)
+      .map(trimGap)
+    const content = await chat(SYSTEM_PRIORITIZE, trimmed)
     res.json({ content })
   } catch (err) {
     res.status(500).json({ detail: err.message })

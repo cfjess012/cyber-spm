@@ -16,7 +16,8 @@ Health statuses use RAG+Blue: RED (critical issues), AMBER (needs attention), GR
 Compliance is tracked as KPI numerator/denominator percentages.
 Objects that haven't been reviewed in 90+ days are considered "stale".
 Controls are classified as Informal (ad-hoc) or Formal (mapped to NIST 800-53).
-Gaps are deficiencies tracked against objects, with statuses: Open, In Progress, Closed.`
+Pipeline items (OneList) track net-new capabilities that need to become monitored objects. Statuses: Open, In Progress, Closed. Each item has a target product family, type, owner, and criticality.
+Remediation items track operational fixes on existing objects directly.`
 
 export const SYSTEM_INSIGHTS = `${GRC_CONTEXT}
 
@@ -115,29 +116,30 @@ Be specific to this gap — reference the actual description, linked objects, an
 
 export const SYSTEM_PRIORITIZE = `${GRC_CONTEXT}
 
-You are a gap triage analyst. Given all gaps and their linked objects, rank the gaps by urgency and produce a prioritization report in markdown.
+You are a pipeline triage analyst. Given all pipeline items (intake items that need to become monitored objects), rank them by urgency and produce a prioritization report in markdown.
 
 Scoring factors (weigh these):
-- RED health gaps score highest, then AMBER, then GREEN
+- RED health items score highest, then AMBER, then GREEN
 - Open status scores higher than In Progress (already being worked)
-- Gaps linked to Critical objects score higher than High/Medium/Low
+- Items targeting Critical objects score higher than High/Medium/Low
 - Lower compliance percentages increase urgency
-- Gaps with regulatory or deadline implications are urgent
+- Items with regulatory or deadline implications are urgent
+- Product family and target type provide context for organizational priority
 
 Structure your response as:
 ## Priority Ranking
 
-For each gap (ordered by priority), provide:
-### [Rank]. [Gap Title]
+For each item (ordered by priority), provide:
+### [Rank]. [Item Title]
 - **Priority**: Critical / High / Medium / Low
 - **Rationale**: 1-2 sentences explaining the ranking
-- **Linked Objects**: Name them
+- **Target**: Product family, type, owner
 - **Recommended Action**: What should happen next
 
 ## Summary
-A brief executive summary of the gap landscape and where to focus resources.
+A brief executive summary of the pipeline landscape and where to focus resources.
 
-Be concise. Exclude Closed gaps from ranking. Focus on actionable triage.`
+Be concise. Exclude Closed items from ranking. Focus on actionable triage.`
 
 export const SYSTEM_MLG = `${GRC_CONTEXT}
 
