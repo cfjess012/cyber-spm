@@ -576,11 +576,11 @@ export default function GapTracker({ onNavigate }) {
     return { status: 'ok', label: `Expires ${gap.expiryDate}` }
   }
 
-  // Path to green stats — only triaged active items
-  const triagedActive = gaps.filter((g) => g.triaged && g.status !== 'Closed')
-  const total = triagedActive.length
-  const greenCount = triagedActive.filter((g) => (g.healthStatus || 'RED') === 'GREEN').length
-  const pctGreen = total ? Math.round((greenCount / total) * 100) : 0
+  // Triage progress stats
+  const totalItems = gaps.length
+  const triagedCount = gaps.filter((g) => g.triaged).length
+  const promotedCount = closedItems.length
+  const pctTriaged = totalItems ? Math.round((triagedCount / totalItems) * 100) : 0
 
   const tabs = [
     { id: 'triage', label: 'Triage Queue', count: untriagedGaps.length },
@@ -746,32 +746,43 @@ export default function GapTracker({ onNavigate }) {
         {aiError && <AiError error={aiError} onRetry={handlePrioritize} />}
       </AiSlidePanel>
 
-      {/* Path to Green Banner — only triaged items */}
-      {total > 0 && (
-        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 mb-6">
-          <div className="flex justify-between items-center mb-2.5">
-            <h3 className="text-[0.88rem] font-bold tracking-tight text-txt">Path to Green</h3>
-            <span className="text-[0.85rem] font-[750] text-green">{pctGreen}% at green health</span>
+      {/* Triage Progress Banner */}
+      {totalItems > 0 && (
+        <div className="bg-gradient-to-br from-[#f8faff] to-white rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(37,99,235,0.06)] border border-[#e8edf5] p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-brand-deep flex items-center justify-center shadow-[0_2px_8px_rgba(37,99,235,0.3)]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              </div>
+              <div>
+                <h3 className="text-[0.92rem] font-bold tracking-tight text-txt leading-none">Triage Progress</h3>
+                <p className="text-[0.72rem] text-txt-3 mt-0.5">{totalItems} items in pipeline</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-[1.5rem] font-[800] tracking-tight bg-gradient-to-r from-brand to-brand-deep bg-clip-text text-transparent leading-none">{pctTriaged}%</span>
+              <p className="text-[0.68rem] font-semibold text-txt-3 mt-0.5 uppercase tracking-wider">triaged</p>
+            </div>
           </div>
-          <div className="h-3 bg-subtle rounded-md overflow-hidden mb-3">
-            <div className="h-full bg-gradient-to-r from-[#16a34a] via-[#22c55e] to-[#4ade80] rounded-md shadow-[0_2px_8px_rgba(22,163,74,0.2)] transition-all duration-600" style={{ width: `${pctGreen}%` }} />
+          <div className="h-2.5 bg-[#eef2f9] rounded-full overflow-hidden mb-4">
+            <div className="h-full bg-gradient-to-r from-brand via-[#4f8af7] to-[#60a5fa] rounded-full transition-all duration-700 ease-out" style={{ width: `${pctTriaged}%` }} />
           </div>
-          <div className="flex gap-5 flex-wrap">
-            {GAP_HEALTH_STATUSES.map((h) => {
-              const count = triagedActive.filter((g) => (g.healthStatus || 'RED') === h.id).length
-              return (
-                <span key={h.id} className="flex items-center gap-1.5 text-[0.78rem] text-txt-2">
-                  <span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: h.color }} />
-                  {h.label}: <strong>{count}</strong>
-                </span>
-              )
-            })}
-            <span className="flex items-center gap-1.5 text-[0.78rem] text-txt-2 ml-2 border-l border-border-light pl-2">
-              {GAP_STATUSES.map((s) => {
-                const count = gaps.filter((g) => g.triaged && g.status === s.id).length
-                return <span key={s.id} className="mr-3 inline-flex items-center gap-1.5"><span className="w-[7px] h-[7px] rounded-full shrink-0" style={{ backgroundColor: s.color }} />{s.id}: <strong>{count}</strong></span>
-              })}
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2.5 bg-red-bg/50 rounded-lg px-3 py-2">
+              <span className="w-2 h-2 rounded-full bg-red shrink-0" />
+              <span className="text-[0.75rem] text-txt-2">Awaiting</span>
+              <span className="text-[0.88rem] font-[800] text-red ml-auto">{totalItems - triagedCount}</span>
+            </div>
+            <div className="flex-1 flex items-center gap-2.5 bg-amber-bg/50 rounded-lg px-3 py-2">
+              <span className="w-2 h-2 rounded-full bg-amber shrink-0" />
+              <span className="text-[0.75rem] text-txt-2">Triaged</span>
+              <span className="text-[0.88rem] font-[800] text-amber ml-auto">{triagedCount - promotedCount}</span>
+            </div>
+            <div className="flex-1 flex items-center gap-2.5 bg-green-bg/50 rounded-lg px-3 py-2">
+              <span className="w-2 h-2 rounded-full bg-green shrink-0" />
+              <span className="text-[0.75rem] text-txt-2">Closed</span>
+              <span className="text-[0.88rem] font-[800] text-green ml-auto">{promotedCount}</span>
+            </div>
           </div>
         </div>
       )}
