@@ -316,7 +316,7 @@ export default function Guide({ onNavigate }) {
       <div className="guide-hero">
         <div className="guide-hero-content">
           <div className="guide-hero-badge">Platform Guide</div>
-          <h1>How CPM Works</h1>
+          <h1>How CPM Works@@@fff</h1>
           <p>
             Cyber Product Management (CPM) governs your security program by tracking controls, processes, and procedures —
             measuring compliance coverage, identifying gaps, and maturing governance across your product families.
