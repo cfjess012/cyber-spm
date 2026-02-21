@@ -17,6 +17,38 @@ const INITIAL_STATE = {
   regulatoryQueue: [],    // [{ id, objectId, objectName, attestationId, confidence, rationale, detectedAt, status }]
 }
 
+// Migrate legacy state: objectIds-based gaps → pipeline gaps, add remediationItems to objects
+function migrateState(state) {
+  let changed = false
+  const gaps = state.gaps.map((g) => {
+    if (g.productFamily) return g // already migrated
+    changed = true
+    // Infer productFamily from first linked object
+    const ids = g.objectIds || (g.objectId ? [g.objectId] : [])
+    const firstObj = ids.length > 0 ? state.objects.find((o) => o.id === ids[0]) : null
+    const productFamily = firstObj?.productFamilies?.[0] || ''
+    const owner = firstObj?.owner || ''
+    const targetType = firstObj?.type || 'Control'
+    const criticality = g.healthStatus === 'RED' ? 'High' : g.healthStatus === 'AMBER' ? 'Medium' : 'Low'
+    const migrated = { ...g, productFamily, targetType, owner, criticality }
+    delete migrated.objectIds
+    delete migrated.objectId
+    return migrated
+  })
+  // Migrate gaps without triage fields (added in triage queue feature)
+  const gaps2 = gaps.map((g) => {
+    if (g.triaged !== undefined) return g
+    changed = true
+    return { ...g, identifier: g.owner || 'System', triaged: true }
+  })
+  const objects = state.objects.map((o) => {
+    if (o.remediationItems) return o
+    changed = true
+    return { ...o, remediationItems: [] }
+  })
+  return changed ? { ...state, gaps: gaps2, objects } : state
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -24,13 +56,13 @@ function loadState() {
       const parsed = { ...INITIAL_STATE, ...JSON.parse(raw) }
       // If store exists but is empty, seed it
       if (parsed.objects.length === 0 && parsed.gaps.length === 0) {
-        return { ...INITIAL_STATE, ...SEED_STATE }
+        return migrateState({ ...INITIAL_STATE, ...SEED_STATE })
       }
-      return parsed
+      return migrateState(parsed)
     }
   } catch { /* ignore */ }
   // First load — seed with synthetic data
-  return { ...INITIAL_STATE, ...SEED_STATE }
+  return migrateState({ ...INITIAL_STATE, ...SEED_STATE })
 }
 
 function saveState(state) {
@@ -67,6 +99,7 @@ function newObject(data) {
     environment: 'Production',
     dataClassification: 'Internal',
     businessUnit: '',
+    remediationItems: [],
     history: [{ action: 'Created', note: 'Object added to inventory', timestamp: now }],
     createdAt: now,
     updatedAt: now,
@@ -124,11 +157,6 @@ function reducer(state, action) {
       return {
         ...state,
         objects: state.objects.filter((o) => o.id !== action.payload),
-        gaps: state.gaps.map((g) => {
-          // Remove deleted object from multi-select objectIds
-          const ids = (g.objectIds || (g.objectId ? [g.objectId] : [])).filter((id) => id !== action.payload)
-          return { ...g, objectIds: ids }
-        }),
       }
     }
     case 'IMPORT_OBJECTS': {
@@ -154,7 +182,12 @@ function reducer(state, action) {
     case 'ADD_GAP': {
       const gap = {
         id: uuid(),
-        objectIds: [],
+        identifier: '',
+        triaged: false,
+        productFamily: '',
+        targetType: 'Control',
+        owner: '',
+        criticality: 'Medium',
         title: '',
         description: '',
         status: 'Open',
@@ -168,16 +201,11 @@ function reducer(state, action) {
         expiryDate: '',
         jiraL1: '',
         jiraL2: '',
-        history: [{ status: 'Open', note: 'Gap created', timestamp: new Date().toISOString() }],
+        history: [{ status: 'Open', note: 'Pipeline item created', timestamp: new Date().toISOString() }],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...action.payload,
       }
-      // Migrate legacy single objectId to objectIds array
-      if (gap.objectId && !gap.objectIds?.length) {
-        gap.objectIds = [gap.objectId]
-      }
-      delete gap.objectId
       gap.compliancePercent = calcCompliance(gap.kpiNumerator, gap.kpiDenominator)
       return { ...state, gaps: [...state.gaps, gap] }
     }
@@ -185,11 +213,6 @@ function reducer(state, action) {
       const gaps = state.gaps.map((g) => {
         if (g.id !== action.payload.id) return g
         const updated = { ...g, ...action.payload, updatedAt: new Date().toISOString() }
-        // Migrate legacy objectId
-        if (updated.objectId && !updated.objectIds?.length) {
-          updated.objectIds = [updated.objectId]
-        }
-        delete updated.objectId
         if (updated.kpiNumerator !== undefined || updated.kpiDenominator !== undefined) {
           updated.compliancePercent = calcCompliance(updated.kpiNumerator, updated.kpiDenominator)
         }
@@ -217,6 +240,26 @@ function reducer(state, action) {
       })
       return { ...state, gaps }
     }
+    case 'TRIAGE_GAP': {
+      const gaps = state.gaps.map((g) => {
+        if (g.id !== action.payload.id) return g
+        const now = new Date().toISOString()
+        const updated = { ...g, ...action.payload, triaged: true, updatedAt: now }
+        if (updated.kpiNumerator !== undefined || updated.kpiDenominator !== undefined) {
+          updated.compliancePercent = calcCompliance(updated.kpiNumerator, updated.kpiDenominator)
+        }
+        updated.history = [
+          ...g.history,
+          {
+            status: 'Triaged',
+            note: `Triaged — ${action.payload.targetType || g.targetType}, assigned to ${action.payload.owner || 'unassigned'}`,
+            timestamp: now,
+          },
+        ]
+        return updated
+      })
+      return { ...state, gaps }
+    }
     case 'DELETE_GAP':
       return { ...state, gaps: state.gaps.filter((g) => g.id !== action.payload) }
 
@@ -228,13 +271,17 @@ function reducer(state, action) {
         listName: gap.title,
         description: gap.description || '',
         healthStatus: 'GREEN',
+        productFamilies: gap.productFamily ? [gap.productFamily] : [],
+        type: gap.targetType || 'Control',
+        owner: gap.owner || '',
+        criticality: gap.criticality || 'Medium',
         controlClassification: gap.controlClassification || 'Informal',
         nistFamilies: gap.nistFamilies || [],
         kpiNumerator: gap.kpiNumerator || 0,
         kpiDenominator: gap.kpiDenominator || 0,
         jiraL1: gap.jiraL1 || '',
         jiraL2: gap.jiraL2 || '',
-        history: [{ action: 'Promoted', note: `Promoted from gap: "${gap.title}"`, timestamp: new Date().toISOString() }],
+        history: [{ action: 'Promoted', note: `Promoted from pipeline: "${gap.title}"`, timestamp: new Date().toISOString() }],
       })
       newObj.compliancePercent = calcCompliance(newObj.kpiNumerator, newObj.kpiDenominator)
       const updatedGap = {
@@ -287,6 +334,51 @@ function reducer(state, action) {
         ...state,
         mlgAssessments: { ...state.mlgAssessments, [objectId]: data },
       }
+    }
+
+    // ── Remediation Items (on Objects) ──
+    case 'ADD_REMEDIATION_ITEM': {
+      const { objectId, title, severity, note } = action.payload
+      const now = new Date().toISOString()
+      const item = { id: uuid(), title, status: 'Open', severity: severity || 'AMBER', note: note || '', createdAt: now, resolvedAt: null }
+      const objects = state.objects.map((o) => {
+        if (o.id !== objectId) return o
+        const remediationItems = [...(o.remediationItems || []), item]
+        const history = [...(o.history || []), { action: 'Remediation added', note: `"${title}" (${severity || 'AMBER'})`, timestamp: now }]
+        return { ...o, remediationItems, history, updatedAt: now }
+      })
+      return { ...state, objects }
+    }
+    case 'UPDATE_REMEDIATION_ITEM': {
+      const { objectId, itemId, ...updates } = action.payload
+      const now = new Date().toISOString()
+      const objects = state.objects.map((o) => {
+        if (o.id !== objectId) return o
+        const remediationItems = (o.remediationItems || []).map((item) => {
+          if (item.id !== itemId) return item
+          const updated = { ...item, ...updates }
+          if (updates.status === 'Resolved' && !item.resolvedAt) updated.resolvedAt = now
+          return updated
+        })
+        const history = [...(o.history || [])]
+        if (updates.status) {
+          history.push({ action: `Remediation ${updates.status.toLowerCase()}`, note: `Item status → ${updates.status}`, timestamp: now })
+        }
+        return { ...o, remediationItems, history, updatedAt: now }
+      })
+      return { ...state, objects }
+    }
+    case 'REMOVE_REMEDIATION_ITEM': {
+      const { objectId, itemId } = action.payload
+      const now = new Date().toISOString()
+      const objects = state.objects.map((o) => {
+        if (o.id !== objectId) return o
+        const removed = (o.remediationItems || []).find((i) => i.id === itemId)
+        const remediationItems = (o.remediationItems || []).filter((i) => i.id !== itemId)
+        const history = [...(o.history || []), { action: 'Remediation removed', note: removed ? `"${removed.title}" removed` : 'Item removed', timestamp: now }]
+        return { ...o, remediationItems, history, updatedAt: now }
+      })
+      return { ...state, objects }
     }
 
     // ── Framework Overrides ──
@@ -375,7 +467,7 @@ function reducer(state, action) {
 
     // ── Bulk ──
     case 'RESTORE_STATE':
-      return { ...INITIAL_STATE, ...action.payload }
+      return migrateState({ ...INITIAL_STATE, ...action.payload })
 
     default:
       return state

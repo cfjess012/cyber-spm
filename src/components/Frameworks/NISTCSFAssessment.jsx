@@ -29,7 +29,7 @@ function CSFRadar({ functions, size = 320 }) {
   const labelOffset = maxR + 36
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="radar-svg">
+    <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[420px] h-auto">
       {/* Grid rings */}
       {ringPaths.map((d, i) => (
         <path key={i} d={d} fill="none" stroke="#e5e7eb" strokeWidth={i === 4 ? "1.5" : "0.8"} opacity={i === 4 ? 1 : 0.6} />
@@ -75,23 +75,23 @@ function CSFRadar({ functions, size = 320 }) {
 // ── Function Bar Chart ──
 function FunctionBars({ functions }) {
   return (
-    <div className="csf-bars">
+    <div className="w-full flex flex-col gap-2">
       {functions.map((f) => (
-        <div key={f.id} className="csf-bar-row">
-          <div className="csf-bar-label" style={{ color: f.color }}>
-            <span className="csf-bar-func-id">{f.id}</span>
-            <span className="csf-bar-func-name">{f.name}</span>
+        <div key={f.id} className="flex items-center gap-[0.55rem]">
+          <div className="flex items-center gap-[0.35rem] w-[105px] shrink-0" style={{ color: f.color }}>
+            <span className="text-[0.7rem] font-[800]">{f.id}</span>
+            <span className="text-[0.75rem] font-semibold">{f.name}</span>
           </div>
-          <div className="csf-bar-track">
+          <div className="flex-1 h-[10px] bg-subtle rounded-[5px] relative overflow-hidden">
             <div
-              className="csf-bar-fill"
+              className="h-full rounded-[5px] transition-all duration-[400ms]"
               style={{ width: `${(f.maturity / 5) * 100}%`, backgroundColor: f.color }}
             />
             {[1, 2, 3, 4].map((l) => (
-              <div key={l} className="csf-bar-tick" style={{ left: `${(l / 5) * 100}%` }} />
+              <div key={l} className="absolute top-0 bottom-0 w-px bg-white/35" style={{ left: `${(l / 5) * 100}%` }} />
             ))}
           </div>
-          <span className="csf-bar-score" style={{ color: f.color }}>{f.maturity.toFixed(1)}</span>
+          <span className="text-[0.78rem] font-[800] w-7 text-right" style={{ color: f.color }}>{f.maturity.toFixed(1)}</span>
         </div>
       ))}
     </div>
@@ -260,11 +260,11 @@ export default function NISTCSFAssessment({ onNavigate }) {
   }
 
   return (
-    <div className="framework-assessment">
-      <div className="page-header">
+    <div>
+      <div className="flex justify-between items-start gap-4 mb-8">
         <div>
-          <h1>NIST CSF 2.0</h1>
-          <p className="page-subtitle">Enterprise maturity across 6 functions and {totalCats} categories — run AI Enterprise Assess for accurate scoring</p>
+          <h1 className="text-[1.75rem] font-[800] tracking-tight text-txt leading-tight">NIST CSF 2.0</h1>
+          <p className="text-txt-3 text-[0.88rem] mt-1 tracking-tight">Enterprise maturity across 6 functions and {totalCats} categories — run AI Enterprise Assess for accurate scoring</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <AiButton onClick={handleAiEnterprise} loading={aiAssessLoading}>AI Enterprise Assess</AiButton>
@@ -283,37 +283,37 @@ export default function NISTCSFAssessment({ onNavigate }) {
       </AiSlidePanel>
 
       {aiAssessError && (
-        <div className="fw-ai-banner error">
+        <div className="bg-red-bg border border-red/15 rounded-xl p-4 mb-5">
           <AiError error={aiAssessError} onRetry={handleAiEnterprise} />
         </div>
       )}
       {aiSuggestions && (
-        <div className="fw-ai-banner">
-          <div className="fw-ai-banner-header">
-            <div className="fw-ai-banner-left">
-              <span className="ai-sparkle">
+        <div className="bg-ai-bg border border-purple-200/40 rounded-xl p-4 mb-5">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-[0.45rem] flex-wrap">
+              <span className="inline-flex text-purple-500">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/>
                 </svg>
               </span>
-              <strong>AI Enterprise Assessment Complete</strong>
-              <span className="fw-ai-banner-info">
+              <strong className="text-[0.85rem] text-purple-700">AI Enterprise Assessment Complete</strong>
+              <span className="text-[0.78rem] text-txt-2">
                 {Object.keys(aiSuggestions).length} categories assessed — review suggestions below or apply all
               </span>
             </div>
-            <div className="fw-ai-banner-actions">
-              <button className="btn-primary small" onClick={applyAllAiSuggestions}>Apply All</button>
-              <button className="btn-secondary" onClick={() => setAiSuggestions(null)} style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}>Dismiss</button>
+            <div className="flex gap-[0.35rem]">
+              <button className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-4 py-2 text-[0.82rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] hover:-translate-y-0.5 active:scale-[0.97] inline-flex items-center gap-1.5" onClick={applyAllAiSuggestions}>Apply All</button>
+              <button className="bg-white text-txt-2 border border-border rounded-[10px] px-4 py-2 text-[0.85rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-subtle hover:border-gray-300" onClick={() => setAiSuggestions(null)} style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}>Dismiss</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Score Summary */}
-      <div className="fw-summary-row">
-        <div className="fw-score-card">
-          <div className="fw-score-gauge">
-            <svg viewBox="0 0 120 120">
+      <div className="grid grid-cols-[1fr_1fr] gap-5 mb-5 max-md:grid-cols-1">
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 flex items-center gap-5">
+          <div className="relative w-[95px] h-[95px] shrink-0">
+            <svg viewBox="0 0 120 120" className="w-full h-full">
               <circle cx="60" cy="60" r="50" fill="none" stroke="#f1f5f9" strokeWidth="10" />
               <circle
                 cx="60" cy="60" r="50"
@@ -326,65 +326,65 @@ export default function NISTCSFAssessment({ onNavigate }) {
                 transform="rotate(-90 60 60)"
               />
             </svg>
-            <div className="fw-score-center">
-              <span className="fw-score-value">{assessment.overallScore}</span>
-              <span className="fw-score-max">/5</span>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[1.65rem] font-[800] leading-none tracking-tight">{assessment.overallScore}</span>
+              <span className="text-[0.75rem] text-txt-3 font-semibold">/5</span>
             </div>
           </div>
-          <div className="fw-score-info">
-            <span className="fw-tier-badge" style={{ backgroundColor: assessment.overallLevel.bg, color: assessment.overallLevel.color }}>
+          <div className="flex-1">
+            <span className="inline-block text-[0.72rem] font-bold px-3 py-1 rounded-full mb-2" style={{ backgroundColor: assessment.overallLevel.bg, color: assessment.overallLevel.color }}>
               {assessment.overallLevel.label}
             </span>
-            <div className="fw-score-stats">
+            <div className="text-[0.78rem] text-txt-2 flex flex-col gap-[0.2rem]">
               <span>6 functions, {totalCats} categories assessed</span>
               {blindCats > 0 && (
-                <span className="fw-blind-alert">{blindCats} blind spot{blindCats !== 1 ? 's' : ''}</span>
+                <span className="text-red font-bold">{blindCats} blind spot{blindCats !== 1 ? 's' : ''}</span>
               )}
             </div>
           </div>
         </div>
-        <div className="fw-csf-bars-card">
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 flex flex-col justify-center">
           <FunctionBars functions={assessment.functions} />
         </div>
       </div>
 
       {/* Radar */}
-      <div className="fw-radar-section dash-card">
-        <div className="dash-card-header">
-          <h3>Function Radar</h3>
-          <span className="dash-card-badge">6 functions</span>
+      <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 mb-5">
+        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+          <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Function Radar</h3>
+          <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 bg-subtle px-2.5 py-1 rounded-full">6 functions</span>
         </div>
-        <div className="fw-radar-container csf-radar">
+        <div className="flex justify-center py-3 max-w-[360px] mx-auto">
           <CSFRadar functions={assessment.functions} />
         </div>
       </div>
 
       {/* Function Cards */}
-      <div className="fw-controls-section">
-        <h2 className="trending-section-title">Function Details</h2>
-        <div className="fw-controls-list">
+      <div className="mt-5">
+        <h2 className="text-[0.82rem] font-bold uppercase tracking-[0.06em] text-txt-3 mb-3">Function Details</h2>
+        <div className="flex flex-col gap-[0.35rem]">
           {assessment.functions.map((func) => {
             const funcExpanded = expandedFunc === func.id
             const blindCount = func.categories.filter((c) => c.objects.length === 0).length
             return (
-              <div key={func.id} className="fw-func-card">
+              <div key={func.id} className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 transition-all duration-200 hover:shadow-md">
                 <div
-                  className="fw-func-header"
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer select-none transition-colors duration-150 rounded-xl hover:bg-brand/[0.015] border-l-4"
                   onClick={() => setExpandedFunc(funcExpanded ? null : func.id)}
                   style={{ borderLeftColor: func.color }}
                 >
-                  <div className="fw-func-left">
-                    <span className="fw-func-id" style={{ color: func.color }}>{func.id}</span>
+                  <div className="flex items-center gap-[0.65rem] flex-1">
+                    <span className="text-[0.95rem] font-[800] shrink-0 tracking-tight" style={{ color: func.color }}>{func.id}</span>
                     <div>
-                      <span className="fw-func-name">{func.name}</span>
-                      <span className="fw-func-meta">{func.categories.length} categories{blindCount > 0 ? ` · ${blindCount} blind` : ''}</span>
+                      <span className="font-semibold text-[0.88rem] block tracking-tight">{func.name}</span>
+                      <span className="text-[0.72rem] text-txt-3 block">{func.categories.length} categories{blindCount > 0 ? ` \u00b7 ${blindCount} blind` : ''}</span>
                     </div>
                   </div>
-                  <div className="fw-control-right">
-                    <span className="fw-maturity-badge" style={{ backgroundColor: func.maturityInfo.bg, color: func.maturityInfo.color }}>
+                  <div className="flex items-center gap-[0.45rem] shrink-0">
+                    <span className="text-[0.72rem] font-bold px-2.5 py-1 rounded-full whitespace-nowrap" style={{ backgroundColor: func.maturityInfo.bg, color: func.maturityInfo.color }}>
                       L{func.maturity.toFixed(1)} — {func.maturityInfo.label}
                     </span>
-                    <span className={`expand-chevron ${funcExpanded ? 'open' : ''}`}>
+                    <span className={`text-txt-3 transition-transform duration-200 ${funcExpanded ? 'rotate-180' : ''}`}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <polyline points="6 9 12 15 18 9"/>
                       </svg>
@@ -393,33 +393,33 @@ export default function NISTCSFAssessment({ onNavigate }) {
                 </div>
 
                 {funcExpanded && (
-                  <div className="fw-func-body">
-                    <p className="fw-control-desc">{func.desc}</p>
-                    <div className="fw-categories">
+                  <div className="px-4 pb-4 animate-[fadeIn_0.18s_ease]">
+                    <p className="text-[0.82rem] text-txt-2 leading-[1.7] mb-3">{func.desc}</p>
+                    <div className="flex flex-col gap-[0.25rem]">
                       {func.categories.map((cat) => {
                         const catExpanded = expandedCat === cat.id
                         const aiSug = aiSuggestions?.[cat.id]
                         const hasDiff = aiSug && aiSug.level !== cat.maturity
                         return (
-                          <div key={cat.id} className={`fw-cat-card ${hasDiff ? 'has-suggestion' : ''}`}>
+                          <div key={cat.id} className={`bg-white/60 rounded-lg border transition-all duration-200 ${hasDiff ? 'border-purple-400/25' : 'border-border-light'}`}>
                             <div
-                              className="fw-cat-header"
+                              className="flex items-center justify-between px-3 py-2.5 cursor-pointer select-none transition-colors duration-150 rounded-lg hover:bg-subtle/50"
                               onClick={() => setExpandedCat(catExpanded ? null : cat.id)}
                             >
-                              <div className="fw-cat-left">
-                                <span className="fw-cat-id">{cat.id}</span>
-                                <span className="fw-cat-name">{cat.name}</span>
-                                <span className="fw-cat-count">{cat.objects.length} obj</span>
+                              <div className="flex items-center gap-[0.45rem] flex-1">
+                                <span className="text-[0.7rem] font-[800] text-txt-2">{cat.id}</span>
+                                <span className="text-[0.82rem] font-medium">{cat.name}</span>
+                                <span className="text-[0.7rem] text-txt-3 ml-[0.2rem]">{cat.objects.length} obj</span>
                               </div>
-                              <div className="fw-control-right">
+                              <div className="flex items-center gap-[0.45rem] shrink-0">
                                 {hasDiff && (
-                                  <span className="ai-suggestion-hint" title={aiSug.rationale}>AI: L{aiSug.level}</span>
+                                  <span className="text-[0.7rem] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full" title={aiSug.rationale}>AI: L{aiSug.level}</span>
                                 )}
-                                {cat.override && <span className="fw-override-badge">Override</span>}
-                                <span className="fw-maturity-badge small" style={{ backgroundColor: cat.maturityInfo.bg, color: cat.maturityInfo.color }}>
+                                {cat.override && <span className="text-[0.65rem] font-bold uppercase tracking-[0.04em] text-amber bg-amber-bg px-2 py-0.5 rounded-full">Override</span>}
+                                <span className="text-[0.7rem] font-bold px-[0.45rem] py-[0.12rem] rounded-full whitespace-nowrap" style={{ backgroundColor: cat.maturityInfo.bg, color: cat.maturityInfo.color }}>
                                   L{cat.maturity}
                                 </span>
-                                <span className={`expand-chevron ${catExpanded ? 'open' : ''}`}>
+                                <span className={`text-txt-3 transition-transform duration-200 ${catExpanded ? 'rotate-180' : ''}`}>
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                                     <polyline points="6 9 12 15 18 9"/>
                                   </svg>
@@ -428,62 +428,62 @@ export default function NISTCSFAssessment({ onNavigate }) {
                             </div>
 
                             {catExpanded && (
-                              <div className="fw-cat-body">
+                              <div className="px-3 pb-3 pt-1">
                                 {hasDiff && (
-                                  <div className="fw-ai-suggestion" style={{ marginBottom: '0.5rem' }}>
-                                    <div className="fw-ai-suggestion-content">
-                                      <span className="ai-sparkle">
+                                  <div className="flex items-start justify-between gap-3 bg-purple-50/60 border border-purple-200/30 rounded-lg p-3 mb-2">
+                                    <div className="flex items-start gap-[0.35rem] flex-1">
+                                      <span className="inline-flex text-purple-500 mt-0.5">
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                                           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/>
                                         </svg>
                                       </span>
                                       <div>
-                                        <strong>AI suggests L{aiSug.level} ({getMaturityLevel(aiSug.level).label})</strong>
-                                        <span className="fw-ai-rationale">{aiSug.rationale}</span>
+                                        <strong className="text-[0.82rem] text-purple-700 block">AI suggests L{aiSug.level} ({getMaturityLevel(aiSug.level).label})</strong>
+                                        <span className="text-[0.78rem] text-txt-2 block mt-0.5 leading-relaxed">{aiSug.rationale}</span>
                                       </div>
                                     </div>
-                                    <button className="btn-primary small" onClick={(e) => { e.stopPropagation(); applyAiSuggestion(cat.id) }}>Apply</button>
+                                    <button className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-4 py-2 text-[0.82rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] hover:-translate-y-0.5 active:scale-[0.97] inline-flex items-center gap-1.5" onClick={(e) => { e.stopPropagation(); applyAiSuggestion(cat.id) }}>Apply</button>
                                   </div>
                                 )}
                                 {cat.objects.length === 0 ? (
-                                  <div className="fw-no-coverage">
+                                  <div className="flex items-center gap-2 bg-red-bg border border-red/10 rounded-lg px-3 py-2.5 text-[0.82rem] text-red">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round">
                                       <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                                     </svg>
                                     <span>No objects mapped — <strong>blind spot</strong></span>
                                   </div>
                                 ) : (
-                                  <div className="fw-obj-list">
+                                  <div className="flex flex-col gap-[0.15rem]">
                                     {cat.objects.map((obj) => {
                                       const h = HEALTH_STATUSES.find((s) => s.id === obj.healthStatus) || HEALTH_STATUSES[2]
                                       return (
-                                        <div key={obj.id} className="fw-obj-row" onClick={() => onNavigate('object-detail', obj.id)}>
-                                          <span className="fw-obj-name">{obj.listName}</span>
-                                          <span className="health-tag" style={{ backgroundColor: h.bg, color: h.color }}>{h.label}</span>
-                                          <span className="fw-obj-comp">{obj.compliancePercent}%</span>
-                                          <span className={`fw-obj-ctrl ${obj.controlClassification.toLowerCase()}`}>{obj.controlClassification}</span>
+                                        <div key={obj.id} className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-subtle" onClick={() => onNavigate('object-detail', obj.id)}>
+                                          <span className="flex-1 font-medium text-[0.82rem]">{obj.listName}</span>
+                                          <span className="text-[0.7rem] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: h.bg, color: h.color }}>{h.label}</span>
+                                          <span className="text-[0.75rem] font-bold text-txt-2">{obj.compliancePercent}%</span>
+                                          <span className={`text-[0.68rem] font-semibold px-2 py-0.5 rounded-full ${obj.controlClassification.toLowerCase() === 'formal' ? 'bg-brand-bg text-brand' : 'bg-subtle text-txt-3'}`}>{obj.controlClassification}</span>
                                         </div>
                                       )
                                     })}
                                   </div>
                                 )}
-                                <div className="fw-maturity-detail">
-                                  <div className="fw-maturity-auto">
-                                    <span className="field-label">Auto-estimated (max L2)</span>
-                                    <span className="fw-maturity-badge small" style={{ backgroundColor: getMaturityLevel(cat.autoMaturity).bg, color: getMaturityLevel(cat.autoMaturity).color }}>
+                                <div className="border-t border-border-light pt-3 mt-3 flex flex-col gap-2">
+                                  <div className="flex items-center gap-[0.35rem] flex-wrap">
+                                    <span className="text-[0.82rem] text-txt-2">Auto-estimated (max L2)</span>
+                                    <span className="text-[0.7rem] font-bold px-[0.45rem] py-[0.12rem] rounded-full whitespace-nowrap" style={{ backgroundColor: getMaturityLevel(cat.autoMaturity).bg, color: getMaturityLevel(cat.autoMaturity).color }}>
                                       L{cat.autoMaturity} — {getMaturityLevel(cat.autoMaturity).label}
                                     </span>
-                                    {!cat.override && <span className="fw-auto-caveat">Use AI Enterprise Assess for accurate L3+ scoring</span>}
+                                    {!cat.override && <span className="text-[0.7rem] text-txt-3 italic">Use AI Enterprise Assess for accurate L3+ scoring</span>}
                                   </div>
                                   {cat.override ? (
-                                    <div className="fw-override-info">
-                                      <span className="field-label">Override: L{cat.override.level}</span>
-                                      {cat.override.note && <span className="fw-override-note">{cat.override.note}</span>}
-                                      <button className="link-btn" onClick={() => clearOverride(cat.id)}>Remove</button>
+                                    <div className="flex items-center gap-[0.45rem] text-[0.78rem]">
+                                      <span className="text-[0.82rem] text-txt-2">Override: L{cat.override.level}</span>
+                                      {cat.override.note && <span className="text-[0.75rem] text-txt-2 italic">{cat.override.note}</span>}
+                                      <button className="bg-none border-none text-brand text-[0.82rem] font-semibold cursor-pointer font-sans hover:underline" onClick={() => clearOverride(cat.id)}>Remove</button>
                                     </div>
                                   ) : overrideEditing === cat.id ? (
-                                    <div className="fw-override-form">
-                                      <select value={overrideLevel} onChange={(e) => setOverrideLevel(e.target.value)}>
+                                    <div className="flex items-center gap-[0.35rem] flex-wrap">
+                                      <select className="bg-white border border-border rounded-[10px] px-3 py-2 text-[0.82rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15" value={overrideLevel} onChange={(e) => setOverrideLevel(e.target.value)}>
                                         <option value="">Select level...</option>
                                         {MATURITY_LEVELS.map((l) => (
                                           <option key={l.level} value={l.level}>L{l.level} — {l.label}</option>
@@ -494,12 +494,13 @@ export default function NISTCSFAssessment({ onNavigate }) {
                                         placeholder="Rationale"
                                         value={overrideNote}
                                         onChange={(e) => setOverrideNote(e.target.value)}
+                                        className="bg-white border border-border rounded-[10px] px-3 py-2 text-[0.82rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15 min-w-[150px]"
                                       />
-                                      <button className="btn-primary small" onClick={() => saveOverride(cat.id)}>Save</button>
-                                      <button className="btn-secondary" onClick={() => setOverrideEditing(null)} style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}>Cancel</button>
+                                      <button className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-4 py-2 text-[0.82rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] hover:-translate-y-0.5 active:scale-[0.97] inline-flex items-center gap-1.5" onClick={() => saveOverride(cat.id)}>Save</button>
+                                      <button className="bg-white text-txt-2 border border-border rounded-[10px] px-4 py-2 text-[0.85rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-subtle hover:border-gray-300" onClick={() => setOverrideEditing(null)} style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem' }}>Cancel</button>
                                     </div>
                                   ) : (
-                                    <button className="link-btn" onClick={() => { setOverrideEditing(cat.id); setOverrideLevel(''); setOverrideNote('') }}>
+                                    <button className="bg-none border-none text-brand text-[0.82rem] font-semibold cursor-pointer font-sans hover:underline self-start" onClick={() => { setOverrideEditing(cat.id); setOverrideLevel(''); setOverrideNote('') }}>
                                       Manual override
                                     </button>
                                   )}

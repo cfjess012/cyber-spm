@@ -16,10 +16,13 @@ export default function App() {
   const [page, setPage] = useState('dashboard')
   const [selectedObjectId, setSelectedObjectId] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [promotionData, setPromotionData] = useState(null)
 
-  const navigate = useCallback((p, objectId) => {
+  const navigate = useCallback((p, objectId, extra) => {
     setPage(p)
     setSelectedObjectId(objectId || null)
+    if (extra?.promotionData) setPromotionData(extra.promotionData)
+    else setPromotionData(null)
     setMobileMenuOpen(false)
   }, [])
 
@@ -29,7 +32,7 @@ export default function App() {
       content = <Dashboard onNavigate={navigate} />
       break
     case 'objects':
-      content = <OneListView onNavigate={navigate} />
+      content = <OneListView onNavigate={navigate} promotionData={promotionData} onClearPromotion={() => setPromotionData(null)} />
       break
     case 'object-detail':
       content = (
@@ -68,12 +71,11 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="flex min-h-screen">
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
-          className="mobile-overlay"
-          style={{ display: 'block' }}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[900] block md:hidden"
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
         />
@@ -83,12 +85,12 @@ export default function App() {
         onNavigate={navigate}
         mobileOpen={mobileMenuOpen}
       />
-      <main className="app-main" role="main">
-        <div className="app-content">{content}</div>
+      <main className="flex-1 overflow-y-auto bg-page" role="main">
+        <div className="max-w-[1180px] mx-auto px-6 py-8 md:px-10 lg:px-12">{content}</div>
       </main>
       {/* Mobile hamburger FAB */}
       <button
-        className="mobile-nav-toggle"
+        className="fixed bottom-5 right-5 z-[950] w-12 h-12 rounded-full bg-gradient-to-br from-brand to-ai text-white shadow-lg flex items-center justify-center border-none cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-xl active:scale-95 md:hidden"
         onClick={() => setMobileMenuOpen((o) => !o)}
         aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
         aria-expanded={mobileMenuOpen}

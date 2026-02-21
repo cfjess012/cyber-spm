@@ -220,5 +220,14 @@ export const STANDUP_PRODUCTS = [
   'General',
 ]
 
+// ── Remediation Item Statuses ──
+export const REMEDIATION_STATUSES = ['Open', 'In Progress', 'Resolved']
+
+// ── Remediation Item Severities ──
+export const REMEDIATION_SEVERITIES = [
+  { id: 'RED', label: 'Red', color: '#dc2626', bg: '#fef2f2' },
+  { id: 'AMBER', label: 'Amber', color: '#ea580c', bg: '#fff7ed' },
+]
+
 // ── Staleness threshold (days) ──
 export const STALENESS_DAYS = 90

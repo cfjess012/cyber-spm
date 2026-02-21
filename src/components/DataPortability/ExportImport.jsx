@@ -30,7 +30,7 @@ export default function ExportImport() {
         const data = await importFromJSON(file)
         if (data.objects) {
           dispatch({ type: 'RESTORE_STATE', payload: data })
-          setMessage({ type: 'success', text: `Restored full state from JSON: ${data.objects.length} objects, ${data.gaps?.length || 0} gaps, ${data.standupItems?.length || 0} standup items.` })
+          setMessage({ type: 'success', text: `Restored full state from JSON: ${data.objects.length} objects, ${data.gaps?.length || 0} pipeline items, ${data.standupItems?.length || 0} standup items.` })
         } else {
           setMessage({ type: 'error', text: 'Invalid JSON structure. Expected { objects, gaps, standupItems, mlgAssessments }.' })
         }
@@ -49,17 +49,72 @@ export default function ExportImport() {
     }
   }
 
+  const CARDS = [
+    {
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      ),
+      color: 'brand',
+      title: 'Export to Excel',
+      desc: 'Download the entire Object Inventory as an .xlsx file for offline review, sharing, or audit purposes.',
+      meta: [`${state.objects.length} objects`],
+      btnText: 'Export .xlsx',
+      onClick: handleExcelExport,
+      disabled: state.objects.length === 0,
+    },
+    {
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+      ),
+      color: 'ai',
+      title: 'Full JSON Backup',
+      desc: 'Export the complete platform state — objects, gaps, standup items, and MLG assessments — as a portable JSON file.',
+      meta: [`${state.objects.length} objects`, `${state.gaps.length} pipeline items`, `${state.standupItems.length} actions`],
+      btnText: 'Export .json',
+      onClick: handleJSONExport,
+    },
+    {
+      icon: (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      ),
+      color: 'green',
+      title: 'Import Data',
+      desc: 'Upload an .xlsx to import/update inventory objects (matched by List Name via fuzzy-header matching), or a .json backup to restore the full platform state.',
+      isImport: true,
+    },
+  ]
+
+  const iconBg = { brand: 'bg-brand-bg text-brand', ai: 'bg-ai-bg text-ai', green: 'bg-green-bg text-green' }
+
   return (
-    <div className="export-import">
-      <div className="page-header">
+    <div>
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4 mb-8">
         <div>
-          <h1>Data Portability</h1>
-          <p className="page-subtitle">Export, backup, and import your CPM data</p>
+          <h1 className="text-[1.75rem] font-[800] tracking-tight text-txt leading-tight">Data Portability</h1>
+          <p className="text-txt-3 text-[0.88rem] mt-1 tracking-tight">Export, backup, and import your CPM data</p>
         </div>
       </div>
 
+      {/* Message Banner */}
       {message && (
-        <div className={`message-banner ${message.type}`}>
+        <div className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-[0.85rem] font-medium mb-5 animate-[slideUp_0.3s_ease-out] ${
+          message.type === 'success'
+            ? 'bg-green-bg text-green border border-green/10'
+            : 'bg-red-bg text-red border border-red/10'
+        }`}>
           {message.type === 'success' ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
           ) : (
@@ -69,99 +124,63 @@ export default function ExportImport() {
         </div>
       )}
 
-      <div className="data-cards">
-        {/* Export */}
-        <div className="data-card">
-          <div className="data-card-icon export">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
+      {/* Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {CARDS.map((card, i) => (
+          <div key={i} className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-6 flex flex-col gap-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconBg[card.color]}`}>
+              {card.icon}
+            </div>
+            <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">{card.title}</h3>
+            <p className="text-[0.82rem] text-txt-2 leading-relaxed flex-1">{card.desc}</p>
+            {card.meta && (
+              <div className="flex flex-wrap gap-2">
+                {card.meta.map((m, j) => (
+                  <span key={j} className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">{m}</span>
+                ))}
+              </div>
+            )}
+            {card.isImport ? (
+              <>
+                <input ref={fileRef} type="file" accept=".xlsx,.xls,.json" onChange={handleFileImport} className="hidden" />
+                <button
+                  className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-5 py-2.5 text-[0.85rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] hover:from-brand-hover hover:to-[#1e3a8a] hover:shadow-[0_4px_16px_rgba(37,99,235,0.35)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:opacity-45 disabled:cursor-not-allowed disabled:transform-none inline-flex items-center gap-1.5"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={importing}
+                >
+                  {importing ? 'Importing...' : 'Choose File'}
+                </button>
+              </>
+            ) : (
+              <button
+                className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-5 py-2.5 text-[0.85rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3),inset_0_1px_0_rgba(255,255,255,0.15)] hover:from-brand-hover hover:to-[#1e3a8a] hover:shadow-[0_4px_16px_rgba(37,99,235,0.35)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:opacity-45 disabled:cursor-not-allowed disabled:transform-none inline-flex items-center gap-1.5"
+                onClick={card.onClick}
+                disabled={card.disabled}
+              >
+                {card.btnText}
+              </button>
+            )}
           </div>
-          <h3>Export to Excel</h3>
-          <p>Download the entire Object Inventory as an .xlsx file for offline review, sharing, or audit purposes.</p>
-          <div className="data-card-meta">
-            <span>{state.objects.length} objects</span>
-          </div>
-          <button className="btn-primary" onClick={handleExcelExport} disabled={state.objects.length === 0}>
-            Export .xlsx
-          </button>
-        </div>
-
-        <div className="data-card">
-          <div className="data-card-icon backup">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
-              <polyline points="7 3 7 8 15 8"/>
-            </svg>
-          </div>
-          <h3>Full JSON Backup</h3>
-          <p>Export the complete platform state — objects, gaps, standup items, and MLG assessments — as a portable JSON file.</p>
-          <div className="data-card-meta">
-            <span>{state.objects.length} objects</span>
-            <span>{state.gaps.length} gaps</span>
-            <span>{state.standupItems.length} actions</span>
-          </div>
-          <button className="btn-primary" onClick={handleJSONExport}>
-            Export .json
-          </button>
-        </div>
-
-        {/* Import */}
-        <div className="data-card">
-          <div className="data-card-icon import">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-          </div>
-          <h3>Import Data</h3>
-          <p>
-            Upload an .xlsx to import/update OneList objects (matched by List Name via fuzzy-header matching),
-            or a .json backup to restore the full platform state.
-          </p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls,.json"
-            onChange={handleFileImport}
-            style={{ display: 'none' }}
-          />
-          <button
-            className="btn-primary"
-            onClick={() => fileRef.current?.click()}
-            disabled={importing}
-          >
-            {importing ? 'Importing...' : 'Choose File'}
-          </button>
-        </div>
+        ))}
       </div>
 
       {/* Current State Summary */}
-      <div className="state-summary card">
-        <h3>Current State Summary</h3>
-        <div className="state-stats">
-          <div className="state-stat">
-            <span className="state-stat-value">{state.objects.length}</span>
-            <span className="state-stat-label">Objects</span>
-          </div>
-          <div className="state-stat">
-            <span className="state-stat-value">{state.gaps.length}</span>
-            <span className="state-stat-label">Gaps</span>
-          </div>
-          <div className="state-stat">
-            <span className="state-stat-value">{state.standupItems.length}</span>
-            <span className="state-stat-label">Standup Items</span>
-          </div>
-          <div className="state-stat">
-            <span className="state-stat-value">{Object.keys(state.mlgAssessments).length}</span>
-            <span className="state-stat-label">MLG Assessments</span>
-          </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-6 mt-4">
+        <h3 className="text-[0.95rem] font-bold tracking-tight text-txt mb-4">Current State Summary</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          {[
+            { value: state.objects.length, label: 'Objects' },
+            { value: state.gaps.length, label: 'Pipeline Items' },
+            { value: state.standupItems.length, label: 'Standup Items' },
+            { value: Object.keys(state.mlgAssessments).length, label: 'MLG Assessments' },
+          ].map((s, i) => (
+            <div key={i} className="text-center">
+              <span className="block text-2xl font-[800] text-brand tracking-tight">{s.value}</span>
+              <span className="block text-[0.72rem] font-semibold text-txt-3 uppercase tracking-wider mt-0.5">{s.label}</span>
+            </div>
+          ))}
         </div>
-        <p className="state-note">
+        <p className="text-[0.78rem] text-txt-3 leading-relaxed">
           Data is persisted in your browser's local storage. Use JSON export for cross-device portability.
         </p>
       </div>

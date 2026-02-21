@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { useStore, useDispatch } from '../../store/useStore.jsx'
-import { HEALTH_STATUSES, NIST_FAMILIES, MLG_PHASES, computeMLGScore, ATTESTATIONS } from '../../data/constants.js'
+import { HEALTH_STATUSES, NIST_FAMILIES, MLG_PHASES, computeMLGScore, ATTESTATIONS, REMEDIATION_STATUSES, REMEDIATION_SEVERITIES } from '../../data/constants.js'
 import { isStale, formatDate, daysSince } from '../../utils/compliance.js'
 import { assessRisk, detectRegulatory, assessKpiCoherence, assessControlCoherence } from '../../utils/ai.js'
 import { AiButton, AiSlidePanel, AiError } from '../AiPanel.jsx'
@@ -8,7 +8,7 @@ import ObjectForm from './ObjectForm.jsx'
 import ConfirmDialog from '../ConfirmDialog.jsx'
 
 export default function ObjectDetail({ objectId, onNavigate }) {
-  const { objects, gaps, mlgAssessments, attestations, regulatoryQueue } = useStore()
+  const { objects, mlgAssessments, attestations, regulatoryQueue } = useStore()
   const dispatch = useDispatch()
   const [editing, setEditing] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
@@ -25,6 +25,8 @@ export default function ObjectDetail({ objectId, onNavigate }) {
   const [controlCoherenceError, setControlCoherenceError] = useState(null)
   const [confirmDialog, setConfirmDialog] = useState({ open: false })
   const closeConfirmDialog = useCallback(() => setConfirmDialog({ open: false }), [])
+  const [showRemForm, setShowRemForm] = useState(false)
+  const [remediationForm, setRemediationForm] = useState({ title: '', severity: 'AMBER' })
 
   const handleRiskAssess = async () => {
     const obj = objects.find((o) => o.id === objectId)
@@ -129,20 +131,17 @@ export default function ObjectDetail({ objectId, onNavigate }) {
   const obj = objects.find((o) => o.id === objectId)
   if (!obj) {
     return (
-      <div className="empty-state card" style={{ marginTop: '2rem' }}>
+      <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-8 text-center" style={{ marginTop: '2rem' }}>
         <p>Object not found.</p>
-        <button className="btn-primary small" onClick={() => onNavigate('objects')}>Back to Object Inventory</button>
+        <button className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-3 py-1.5 text-[0.8rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 active:scale-[0.97]" onClick={() => onNavigate('objects')}>Back to Object Inventory</button>
       </div>
     )
   }
 
   const hs = HEALTH_STATUSES.find((h) => h.id === obj.healthStatus) || HEALTH_STATUSES[2]
   const stale = isStale(obj.lastReviewDate)
-  const objectGaps = gaps.filter((g) => {
-    const ids = g.objectIds || (g.objectId ? [g.objectId] : [])
-    return ids.includes(obj.id)
-  })
-  const openGaps = objectGaps.filter((g) => g.status !== 'Closed').length
+  const remItems = obj.remediationItems || []
+  const openRemCount = remItems.filter((i) => i.status !== 'Resolved').length
 
   const handleDelete = () => {
     setConfirmDialog({
@@ -164,37 +163,69 @@ export default function ObjectDetail({ objectId, onNavigate }) {
     setEditing(false)
   }
 
+  const critColors = {
+    critical: 'bg-red-bg text-red',
+    high: 'bg-orange-bg text-orange',
+    medium: 'bg-amber-bg text-amber',
+    low: 'bg-green-bg text-green',
+  }
+
+  const confidenceColors = {
+    high: 'bg-green-bg text-green',
+    medium: 'bg-amber-bg text-amber',
+    low: 'bg-red-bg text-red',
+  }
+
+  const alignmentColors = {
+    aligned: 'bg-green-bg text-green',
+    partially_aligned: 'bg-amber-bg text-amber',
+    misaligned: 'bg-red-bg text-red',
+  }
+
+  const suggestionTypeColors = {
+    primary_kpi: 'bg-brand/10 text-brand',
+    secondary_kpi: 'bg-ai/10 text-ai',
+    denominator_fix: 'bg-amber-bg text-amber',
+  }
+
+  const coherenceScoreColor = (score) => {
+    if (score >= 85) return 'bg-green-bg text-green'
+    if (score >= 65) return 'bg-brand/10 text-brand'
+    if (score >= 40) return 'bg-amber-bg text-amber'
+    return 'bg-red-bg text-red'
+  }
+
   return (
-    <div className="object-detail">
+    <div>
       {/* Breadcrumb */}
-      <div className="breadcrumb">
-        <button className="breadcrumb-link" onClick={() => onNavigate('objects')}>Object Inventory</button>
-        <span className="breadcrumb-sep">/</span>
-        <span className="breadcrumb-current">{obj.listName || 'Untitled'}</span>
+      <div className="flex items-center gap-1.5 text-[0.78rem] mb-4">
+        <button className="bg-transparent border-none text-brand cursor-pointer font-sans text-[0.78rem] font-medium hover:text-brand-deep transition-colors p-0" onClick={() => onNavigate('objects')}>Object Inventory</button>
+        <span className="text-txt-3">/</span>
+        <span className="text-txt-2 font-medium truncate">{obj.listName || 'Untitled'}</span>
       </div>
 
       {/* Header */}
-      <div className="detail-header">
-        <div className="detail-header-left">
-          <h1>{obj.listName || 'Untitled'}</h1>
-          <div className="detail-tags">
-            <span className="health-tag" style={{ backgroundColor: hs.bg, color: hs.color }}>{hs.label}</span>
+      <div className="flex justify-between items-start gap-4 mb-4 flex-wrap">
+        <div className="flex flex-col">
+          <h1 className="text-[1.75rem] font-[800] tracking-tight text-txt leading-tight">{obj.listName || 'Untitled'}</h1>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            <span className="inline-flex items-center text-[0.72rem] font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: hs.bg, color: hs.color }}>{hs.label}</span>
             {(() => {
               const mlg = mlgAssessments[obj.id]
               if (!mlg) return null
               const { tier } = computeMLGScore(mlg, obj)
-              return <span className="maturity-tag" style={{ backgroundColor: tier.bg, color: tier.color }}>{tier.label}</span>
+              return <span className="inline-flex items-center text-[0.72rem] font-bold px-2.5 py-1 rounded-full" style={{ backgroundColor: tier.bg, color: tier.color }}>{tier.label}</span>
             })()}
-            <span className="type-tag">{obj.type}</span>
-            <span className={`crit-tag crit-${(obj.criticality || 'medium').toLowerCase()}`}>{obj.criticality}</span>
-            {stale && <span className="stale-badge">Stale</span>}
-            {obj.status !== 'Active' && <span className="status-tag inactive">{obj.status}</span>}
+            <span className="text-[0.62rem] font-bold uppercase px-1.5 py-0.5 rounded bg-subtle text-txt-3 tracking-wider">{obj.type}</span>
+            <span className={`text-[0.62rem] font-bold uppercase px-1.5 py-0.5 rounded tracking-wider ${critColors[(obj.criticality || 'medium').toLowerCase()] || ''}`}>{obj.criticality}</span>
+            {stale && <span className="text-[0.62rem] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-bg text-amber">Stale</span>}
+            {obj.status !== 'Active' && <span className="text-[0.62rem] font-bold uppercase px-1.5 py-0.5 rounded bg-red-bg text-red">{obj.status}</span>}
           </div>
         </div>
-        <div className="detail-header-right">
+        <div className="flex items-center gap-2 flex-wrap">
           <AiButton onClick={handleRiskAssess} loading={aiLoading}>Risk Assessment</AiButton>
-          <button className="btn-secondary" onClick={() => setEditing(true)}>Edit</button>
-          <button className="btn-danger-outline" onClick={handleDelete}>Delete</button>
+          <button className="bg-white text-txt-2 border border-border rounded-[10px] px-4 py-2 text-[0.82rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-subtle hover:border-gray-300" onClick={() => setEditing(true)}>Edit</button>
+          <button className="bg-transparent text-red border border-red/20 rounded-[10px] px-4 py-2 text-[0.82rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-red-bg hover:border-red/30" onClick={handleDelete}>Delete</button>
         </div>
 
         <AiSlidePanel
@@ -209,81 +240,81 @@ export default function ObjectDetail({ objectId, onNavigate }) {
       </div>
 
       {obj.description && (
-        <p className="detail-description">{obj.description}</p>
+        <p className="text-[0.88rem] text-txt-2 leading-relaxed mb-6">{obj.description}</p>
       )}
 
       {/* Layout: Reference sidebar + Main cards */}
-      <div className="detail-layout">
+      <div className="flex flex-col md:flex-row gap-6 mb-6">
         {/* Left: Compact reference panel */}
-        <div className="detail-reference">
-          <div className="ref-group">
-            <span className="ref-label">Owner</span>
-            <span className="ref-value">{obj.owner || '—'}</span>
+        <div className="w-full md:w-[260px] shrink-0 bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 h-fit">
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Owner</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{obj.owner || '—'}</span>
           </div>
-          <div className="ref-group">
-            <span className="ref-label">Operator</span>
-            <span className="ref-value">{obj.operator || '—'}</span>
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Operator</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{obj.operator || '—'}</span>
           </div>
-          <div className="ref-group">
-            <span className="ref-label">Identifying Person</span>
-            <span className="ref-value">{obj.identifyingPerson || '—'}</span>
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Identifying Person</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{obj.identifyingPerson || '—'}</span>
           </div>
-          <div className="ref-group">
-            <span className="ref-label">Business Unit</span>
-            <span className="ref-value">{obj.businessUnit || '—'}</span>
-          </div>
-
-          <div className="ref-divider" />
-
-          <div className="ref-group">
-            <span className="ref-label">Review Cadence</span>
-            <span className="ref-value">{obj.reviewCadence}</span>
-          </div>
-          <div className="ref-group">
-            <span className="ref-label">Last Review</span>
-            <span className="ref-value">{formatDate(obj.lastReviewDate)}{stale ? ` (${daysSince(obj.lastReviewDate)}d)` : ''}</span>
-          </div>
-          <div className="ref-group">
-            <span className="ref-label">Next Review</span>
-            <span className="ref-value">{formatDate(obj.nextReviewDate)}</span>
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Business Unit</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{obj.businessUnit || '—'}</span>
           </div>
 
-          <div className="ref-divider" />
+          <div className="border-t border-border-light my-3" />
 
-          <div className="ref-group">
-            <span className="ref-label">Environment</span>
-            <span className="ref-value">{obj.environment}</span>
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Review Cadence</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{obj.reviewCadence}</span>
           </div>
-          <div className="ref-group">
-            <span className="ref-label">Data Classification</span>
-            <span className="ref-value">{obj.dataClassification}</span>
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Last Review</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{formatDate(obj.lastReviewDate)}{stale ? ` (${daysSince(obj.lastReviewDate)}d)` : ''}</span>
+          </div>
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Next Review</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{formatDate(obj.nextReviewDate)}</span>
           </div>
 
-          <div className="ref-divider" />
+          <div className="border-t border-border-light my-3" />
 
-          <div className="ref-group">
-            <span className="ref-label">Product Families</span>
-            <div className="family-chips" style={{ marginTop: '0.2rem' }}>
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Environment</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{obj.environment}</span>
+          </div>
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Data Classification</span>
+            <span className="text-[0.85rem] text-txt font-medium block">{obj.dataClassification}</span>
+          </div>
+
+          <div className="border-t border-border-light my-3" />
+
+          <div className="mb-3">
+            <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Product Families</span>
+            <div className="flex flex-wrap gap-1.5" style={{ marginTop: '0.2rem' }}>
               {(obj.productFamilies || []).length > 0
-                ? obj.productFamilies.map((f) => <span key={f} className="family-chip">{f}</span>)
-                : <span className="text-muted">None</span>
+                ? obj.productFamilies.map((f) => <span key={f} className="text-[0.68rem] font-semibold px-2 py-0.5 rounded-full bg-brand/[0.08] text-brand">{f}</span>)
+                : <span className="text-txt-3">None</span>
               }
             </div>
           </div>
 
           {(obj.jiraL1 || obj.jiraL2) && (
             <>
-              <div className="ref-divider" />
+              <div className="border-t border-border-light my-3" />
               {obj.jiraL1 && (
-                <div className="ref-group">
-                  <span className="ref-label">Jira L1</span>
-                  <span className="ref-value mono">{obj.jiraL1}</span>
+                <div className="mb-3">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Jira L1</span>
+                  <span className="text-[0.85rem] text-txt font-medium block font-mono text-[0.82rem]">{obj.jiraL1}</span>
                 </div>
               )}
               {obj.jiraL2 && (
-                <div className="ref-group">
-                  <span className="ref-label">Jira L2</span>
-                  <span className="ref-value mono">{obj.jiraL2}</span>
+                <div className="mb-3">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Jira L2</span>
+                  <span className="text-[0.85rem] text-txt font-medium block font-mono text-[0.82rem]">{obj.jiraL2}</span>
                 </div>
               )}
             </>
@@ -291,19 +322,19 @@ export default function ObjectDetail({ objectId, onNavigate }) {
         </div>
 
         {/* Right: Main cards stacked */}
-        <div className="detail-main">
+        <div className="flex-1 flex flex-col gap-5 min-w-0">
           {/* Compliance Card */}
-          <div className="detail-card">
-            <div className="detail-card-header-row">
-              <h3>Compliance</h3>
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+            <div className="flex items-center justify-between mb-4 gap-2">
+              <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Compliance</h3>
               <button
-                className={`btn-ai-mini ${kpiLoading ? 'loading' : ''}`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[0.72rem] font-semibold bg-ai/[0.08] text-ai border border-ai/15 cursor-pointer font-sans transition-all duration-150 hover:bg-ai/[0.12] hover:border-ai/25 ${kpiLoading ? 'opacity-60 cursor-wait' : ''}`}
                 onClick={handleKpiCoherence}
                 disabled={kpiLoading}
                 title="AI KPI Coherence Check"
               >
                 {kpiLoading ? (
-                  <span className="spinner-sm" />
+                  <span className="inline-block w-3.5 h-3.5 border-2 border-ai/30 border-t-ai rounded-full animate-spin" />
                 ) : (
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -312,9 +343,9 @@ export default function ObjectDetail({ objectId, onNavigate }) {
                 KPI Check
               </button>
             </div>
-            <div className="compliance-gauge">
-              <div className="compliance-gauge-circle">
-                <svg viewBox="0 0 100 100">
+            <div className="flex items-center gap-6 flex-wrap">
+              <div className="relative w-[100px] h-[100px] shrink-0">
+                <svg viewBox="0 0 100 100" className="w-full h-full">
                   <circle cx="50" cy="50" r="42" fill="none" stroke="#f1f5f9" strokeWidth="8" />
                   <circle
                     cx="50" cy="50" r="42"
@@ -327,21 +358,21 @@ export default function ObjectDetail({ objectId, onNavigate }) {
                     transform="rotate(-90 50 50)"
                   />
                 </svg>
-                <span className="compliance-gauge-value">{obj.compliancePercent}%</span>
+                <span className="absolute inset-0 flex items-center justify-center text-xl font-[800] tracking-tight text-txt">{obj.compliancePercent}%</span>
               </div>
-              <div className="compliance-formula">
-                <span>{obj.kpiNumerator} / {obj.kpiDenominator}</span>
-                <span className="formula-label">Numerator / Denominator</span>
+              <div className="flex flex-col">
+                <span className="text-[1.1rem] font-[700] text-txt tracking-tight">{obj.kpiNumerator} / {obj.kpiDenominator}</span>
+                <span className="text-[0.72rem] text-txt-3 font-medium">Numerator / Denominator</span>
               </div>
             </div>
             {obj.kpiDefinition && (
-              <div className="kpi-definition">
-                <span className="kpi-definition-label">KPI Definition</span>
-                <span className="kpi-definition-text">{obj.kpiDefinition}</span>
+              <div className="mt-3 pt-3 border-t border-border-light">
+                <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">KPI Definition</span>
+                <span className="text-[0.82rem] text-txt-2 leading-relaxed">{obj.kpiDefinition}</span>
               </div>
             )}
             {kpiError && (
-              <div className="ai-error" style={{ marginTop: '0.5rem' }}>
+              <div className="flex items-center gap-2 text-red text-[0.82rem] bg-red-bg border border-red/10 rounded-lg px-3 py-2" style={{ marginTop: '0.5rem' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
@@ -349,37 +380,37 @@ export default function ObjectDetail({ objectId, onNavigate }) {
               </div>
             )}
             {kpiAssessment && (
-              <div className="kpi-coherence-result">
-                <div className="kpi-coherence-header">
-                  <div className={`kpi-confidence-badge confidence-${kpiAssessment.confidenceLabel?.toLowerCase() || 'medium'}`}>
-                    <span className="kpi-confidence-score">{kpiAssessment.confidence}</span>
-                    <span className="kpi-confidence-label">{kpiAssessment.confidenceLabel || 'N/A'}</span>
+              <div className="mt-4 p-4 bg-ai/[0.04] border border-ai/10 rounded-xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`inline-flex flex-col items-center px-3 py-1.5 rounded-lg text-center ${confidenceColors[kpiAssessment.confidenceLabel?.toLowerCase()] || confidenceColors.medium}`}>
+                    <span className="text-lg font-[800]">{kpiAssessment.confidence}</span>
+                    <span className="text-[0.65rem] font-bold uppercase">{kpiAssessment.confidenceLabel || 'N/A'}</span>
                   </div>
-                  <span className={`kpi-alignment-tag alignment-${kpiAssessment.alignment || 'unknown'}`}>
+                  <span className={`text-[0.72rem] font-bold px-2.5 py-1 rounded-full ${alignmentColors[kpiAssessment.alignment] || ''}`}>
                     {kpiAssessment.alignment === 'aligned' ? 'Aligned' : kpiAssessment.alignment === 'partially_aligned' ? 'Partially Aligned' : 'Misaligned'}
                   </span>
                 </div>
                 {kpiAssessment.alignmentRationale && (
-                  <p className="kpi-rationale">{kpiAssessment.alignmentRationale}</p>
+                  <p className="text-[0.82rem] text-txt-2 leading-relaxed mb-3">{kpiAssessment.alignmentRationale}</p>
                 )}
                 {kpiAssessment.inferredKpiDefinition && (
-                  <div className="kpi-inferred">
-                    <span className="kpi-inferred-label">AI-Inferred KPI</span>
-                    <span>{kpiAssessment.inferredKpiDefinition}</span>
+                  <div className="mt-2 p-3 bg-subtle rounded-lg">
+                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">AI-Inferred KPI</span>
+                    <span className="text-[0.82rem] text-txt-2">{kpiAssessment.inferredKpiDefinition}</span>
                   </div>
                 )}
                 {kpiAssessment.scaleAssessment && (
-                  <div className="kpi-inferred">
-                    <span className="kpi-inferred-label">Scale Assessment</span>
-                    <span>{kpiAssessment.scaleAssessment}</span>
+                  <div className="mt-2 p-3 bg-subtle rounded-lg">
+                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Scale Assessment</span>
+                    <span className="text-[0.82rem] text-txt-2">{kpiAssessment.scaleAssessment}</span>
                   </div>
                 )}
                 {kpiAssessment.anomalies?.length > 0 && (
-                  <div className="kpi-anomalies">
-                    <span className="kpi-anomalies-label">Anomalies</span>
+                  <div className="mt-3">
+                    <span className="text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-1.5">Anomalies</span>
                     {kpiAssessment.anomalies.map((a, i) => (
-                      <div key={i} className="kpi-anomaly-item">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round">
+                      <div key={i} className="flex items-start gap-1.5 text-[0.82rem] text-txt-2 mb-1">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 mt-0.5">
                           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                         </svg>
                         <span>{a}</span>
@@ -388,20 +419,20 @@ export default function ObjectDetail({ objectId, onNavigate }) {
                   </div>
                 )}
                 {kpiAssessment.suggestions?.length > 0 && (
-                  <div className="kpi-suggestions">
-                    <span className="kpi-suggestions-label">Suggestions</span>
+                  <div className="mt-3">
+                    <span className="text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-1.5">Suggestions</span>
                     {kpiAssessment.suggestions.map((s, i) => (
-                      <div key={i} className="kpi-suggestion-item">
-                        <span className={`kpi-suggestion-type type-${s.type}`}>
+                      <div key={i} className="flex flex-col gap-0.5 p-3 bg-white/80 rounded-lg border border-border-light mb-2">
+                        <span className={`text-[0.62rem] font-bold uppercase px-1.5 py-0.5 rounded self-start ${suggestionTypeColors[s.type] || 'bg-amber-bg text-amber'}`}>
                           {s.type === 'primary_kpi' ? 'Primary KPI' : s.type === 'secondary_kpi' ? 'Secondary KPI' : 'Denominator'}
                         </span>
-                        <strong>{s.suggestion}</strong>
-                        <span className="kpi-suggestion-rationale">{s.rationale}</span>
+                        <strong className="font-semibold text-txt text-[0.82rem]">{s.suggestion}</strong>
+                        <span className="text-[0.78rem] text-txt-3">{s.rationale}</span>
                       </div>
                     ))}
                   </div>
                 )}
-                <button className="link-btn" onClick={() => setKpiAssessment(null)} style={{ marginTop: '0.5rem', fontSize: '0.72rem' }}>
+                <button className="bg-transparent border-none text-brand cursor-pointer font-sans text-[0.72rem] font-semibold hover:text-brand-deep transition-colors p-0" onClick={() => setKpiAssessment(null)} style={{ marginTop: '0.5rem' }}>
                   Dismiss
                 </button>
               </div>
@@ -409,19 +440,19 @@ export default function ObjectDetail({ objectId, onNavigate }) {
           </div>
 
           {/* Controls Card */}
-          <div className="detail-card">
-            <div className="detail-card-header-row">
-              <h3>Controls</h3>
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+            <div className="flex items-center justify-between mb-4 gap-2">
+              <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Controls</h3>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {obj.controlClassification === 'Formal' && (
                   <button
-                    className={`btn-ai-mini ${controlCoherenceLoading ? 'loading' : ''}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[0.72rem] font-semibold bg-ai/[0.08] text-ai border border-ai/15 cursor-pointer font-sans transition-all duration-150 hover:bg-ai/[0.12] hover:border-ai/25 ${controlCoherenceLoading ? 'opacity-60 cursor-wait' : ''}`}
                     onClick={handleControlCoherence}
                     disabled={controlCoherenceLoading}
                     title="Check control description quality"
                   >
                     {controlCoherenceLoading ? (
-                      <span className="spinner-sm" />
+                      <span className="inline-block w-3.5 h-3.5 border-2 border-ai/30 border-t-ai rounded-full animate-spin" />
                     ) : (
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
@@ -431,13 +462,13 @@ export default function ObjectDetail({ objectId, onNavigate }) {
                   </button>
                 )}
                 <button
-                  className={`btn-ai-mini ${regScanning ? 'loading' : ''}`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[0.72rem] font-semibold bg-ai/[0.08] text-ai border border-ai/15 cursor-pointer font-sans transition-all duration-150 hover:bg-ai/[0.12] hover:border-ai/25 ${regScanning ? 'opacity-60 cursor-wait' : ''}`}
                   onClick={handleRegScan}
                   disabled={regScanning}
                   title="Scan for regulatory attestations"
                 >
                   {regScanning ? (
-                    <span className="spinner-sm" />
+                    <span className="inline-block w-3.5 h-3.5 border-2 border-ai/30 border-t-ai rounded-full animate-spin" />
                   ) : (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -448,7 +479,7 @@ export default function ObjectDetail({ objectId, onNavigate }) {
               </div>
             </div>
             {regScanError && (
-              <div className="ai-error" style={{ marginBottom: '0.5rem' }}>
+              <div className="flex items-center gap-2 text-red text-[0.82rem] bg-red-bg border border-red/10 rounded-lg px-3 py-2" style={{ marginBottom: '0.5rem' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
@@ -456,7 +487,7 @@ export default function ObjectDetail({ objectId, onNavigate }) {
               </div>
             )}
             {controlCoherenceError && (
-              <div className="ai-error" style={{ marginBottom: '0.5rem' }}>
+              <div className="flex items-center gap-2 text-red text-[0.82rem] bg-red-bg border border-red/10 rounded-lg px-3 py-2" style={{ marginBottom: '0.5rem' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
@@ -464,97 +495,97 @@ export default function ObjectDetail({ objectId, onNavigate }) {
               </div>
             )}
             {controlCoherence && (
-              <div className="control-coherence-result">
-                <div className="coherence-header">
-                  <span className="coherence-title">Control Statement Quality</span>
-                  <span className={`coherence-score-badge ${controlCoherence.qualityScore >= 85 ? 'strong' : controlCoherence.qualityScore >= 65 ? 'adequate' : controlCoherence.qualityScore >= 40 ? 'weak' : 'poor'}`}>
+              <div className="mt-4 p-4 bg-ai/[0.04] border border-ai/10 rounded-xl">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[0.82rem] font-bold text-txt">Control Statement Quality</span>
+                  <span className={`text-[0.72rem] font-bold px-2.5 py-1 rounded-full ${coherenceScoreColor(controlCoherence.qualityScore)}`}>
                     {controlCoherence.qualityScore}/100 — {controlCoherence.qualityLabel}
                   </span>
                 </div>
                 {controlCoherence.maturityAlignment && (
-                  <div className="coherence-maturity">
-                    <span className="coherence-maturity-tier">{controlCoherence.maturityAlignment.suggestedTier}</span>
-                    <span className="coherence-maturity-rationale">{controlCoherence.maturityAlignment.rationale}</span>
+                  <div className="mt-3 p-3 bg-subtle rounded-lg">
+                    <span className="text-[0.78rem] font-bold text-brand block mb-0.5">{controlCoherence.maturityAlignment.suggestedTier}</span>
+                    <span className="text-[0.78rem] text-txt-2">{controlCoherence.maturityAlignment.rationale}</span>
                   </div>
                 )}
                 {controlCoherence.strengths?.length > 0 && (
-                  <div className="coherence-list strengths">
-                    <span className="coherence-list-label">Strengths</span>
+                  <div className="mt-3">
+                    <span className="text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-1.5">Strengths</span>
                     {controlCoherence.strengths.map((s, i) => (
-                      <div key={i} className="coherence-list-item">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      <div key={i} className="flex items-start gap-1.5 text-[0.82rem] text-txt-2 mb-1">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 mt-0.5"><path d="M20 6L9 17l-5-5"/></svg>
                         <span>{s}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {controlCoherence.missingElements?.length > 0 && (
-                  <div className="coherence-list missing">
-                    <span className="coherence-list-label">Missing Elements</span>
+                  <div className="mt-3">
+                    <span className="text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-1.5">Missing Elements</span>
                     {controlCoherence.missingElements.map((m, i) => (
-                      <div key={i} className="coherence-list-item">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      <div key={i} className="flex items-start gap-1.5 text-[0.82rem] text-txt-2 mb-1">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinecap="round" className="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         <span>{m}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {controlCoherence.impactAssessment && (
-                  <div className="coherence-impact">
-                    <span className="coherence-impact-label">Maturity Impact</span>
+                  <div className="mt-3 p-3 bg-subtle rounded-lg text-[0.82rem] text-txt-2">
+                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3 block mb-0.5">Maturity Impact</span>
                     <span>{controlCoherence.impactAssessment}</span>
                   </div>
                 )}
                 {controlCoherence.rewriteSuggestion && (
-                  <div className="coherence-rewrite">
-                    <span className="coherence-rewrite-label">Suggested Rewrite</span>
-                    <p>{controlCoherence.rewriteSuggestion}</p>
+                  <div className="mt-3 p-3 bg-brand/[0.04] border border-brand/10 rounded-lg">
+                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-brand block mb-1">Suggested Rewrite</span>
+                    <p className="text-[0.82rem] text-txt leading-relaxed m-0 italic">{controlCoherence.rewriteSuggestion}</p>
                   </div>
                 )}
-                <button className="link-btn" onClick={() => setControlCoherence(null)} style={{ marginTop: '0.5rem', fontSize: '0.72rem' }}>
+                <button className="bg-transparent border-none text-brand cursor-pointer font-sans text-[0.72rem] font-semibold hover:text-brand-deep transition-colors p-0" onClick={() => setControlCoherence(null)} style={{ marginTop: '0.5rem' }}>
                   Dismiss
                 </button>
               </div>
             )}
-            <div className="detail-fields">
-              <div className="detail-field">
-                <span className="field-label">Classification</span>
-                <span className={`field-value control-tag ${obj.controlClassification.toLowerCase()}`}>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">Classification</span>
+                <span className={`inline-flex text-[0.72rem] font-bold px-2.5 py-1 rounded-full self-start ${obj.controlClassification.toLowerCase() === 'formal' ? 'bg-green-bg text-green' : 'bg-amber-bg text-amber'}`}>
                   {obj.controlClassification}
                 </span>
               </div>
               {obj.controlType && (
-                <div className="detail-field">
-                  <span className="field-label">Control Function</span>
-                  <span className={`field-value control-type-tag type-${obj.controlType.toLowerCase()}`}>{obj.controlType}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">Control Function</span>
+                  <span className="inline-flex text-[0.72rem] font-bold px-2 py-0.5 rounded-full bg-subtle text-txt-2 self-start">{obj.controlType}</span>
                 </div>
               )}
               {obj.implementationType && (
-                <div className="detail-field">
-                  <span className="field-label">Implementation</span>
-                  <span className={`field-value control-type-tag type-${obj.implementationType.toLowerCase()}`}>{obj.implementationType}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">Implementation</span>
+                  <span className="inline-flex text-[0.72rem] font-bold px-2 py-0.5 rounded-full bg-subtle text-txt-2 self-start">{obj.implementationType}</span>
                 </div>
               )}
               {obj.executionFrequency && (
-                <div className="detail-field">
-                  <span className="field-label">Execution Frequency</span>
-                  <span className="field-value">{obj.executionFrequency}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">Execution Frequency</span>
+                  <span className="text-[0.85rem] text-txt">{obj.executionFrequency}</span>
                 </div>
               )}
               {obj.controlObjective && (
-                <div className="detail-field">
-                  <span className="field-label">Control Objective</span>
-                  <span className="field-value" style={{ fontSize: '0.82rem', lineHeight: '1.5' }}>{obj.controlObjective}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">Control Objective</span>
+                  <span className="text-[0.85rem] text-txt" style={{ fontSize: '0.82rem', lineHeight: '1.5' }}>{obj.controlObjective}</span>
                 </div>
               )}
               {obj.controlClassification === 'Formal' && obj.nistFamilies?.length > 0 && (
-                <div className="detail-field">
-                  <span className="field-label">NIST 800-53 Families</span>
-                  <div className="nist-chips">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">NIST 800-53 Families</span>
+                  <div className="flex flex-wrap gap-1.5">
                     {obj.nistFamilies.map((fId) => {
                       const fam = NIST_FAMILIES.find((n) => n.id === fId)
                       return (
-                        <span key={fId} className="nist-chip" title={fam?.name}>
+                        <span key={fId} className="text-[0.68rem] font-semibold px-2 py-0.5 rounded-full bg-brand/[0.08] text-brand" title={fam?.name}>
                           {fId}
                         </span>
                       )
@@ -569,23 +600,23 @@ export default function ObjectDetail({ objectId, onNavigate }) {
                   (q) => q.objectId === obj.id && q.status === 'pending'
                 ).length
                 return (
-                  <div className="detail-field">
-                    <span className="field-label">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">
                       Regulatory Attestations
                       {pendingCount > 0 && (
-                        <button className="reg-pending-link" onClick={() => onNavigate('regulatory')}>
+                        <button className="ml-2 bg-transparent border-none text-amber cursor-pointer font-sans text-[0.72rem] font-semibold underline hover:text-amber/80 transition-colors p-0" onClick={() => onNavigate('regulatory')}>
                           {pendingCount} pending review
                         </button>
                       )}
                     </span>
                     {objAtts.length > 0 ? (
-                      <div className="attestation-chips">
+                      <div className="flex flex-wrap gap-1.5">
                         {objAtts.map((attId) => {
                           const att = ATTESTATIONS.find((a) => a.id === attId) || { id: attId, name: attId, category: 'Unknown' }
                           return (
-                            <span key={attId} className="attestation-chip" title={att.desc}>
+                            <span key={attId} className="inline-flex items-center gap-1 text-[0.72rem] font-semibold px-2.5 py-1 rounded-full bg-amber-bg text-amber" title={att.desc}>
                               {att.name}
-                              <button className="attestation-remove" onClick={() => removeAttestation(attId)} title="Remove">
+                              <button className="bg-transparent border-none text-amber cursor-pointer p-0.5 rounded transition-opacity hover:opacity-70" onClick={() => removeAttestation(attId)} title="Remove">
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                                 </svg>
@@ -595,7 +626,7 @@ export default function ObjectDetail({ objectId, onNavigate }) {
                         })}
                       </div>
                     ) : (
-                      <span className="text-muted" style={{ fontSize: '0.82rem' }}>None confirmed — run Scan Regs to detect</span>
+                      <span className="text-txt-3" style={{ fontSize: '0.82rem' }}>None confirmed — run Scan Regs to detect</span>
                     )}
                   </div>
                 )
@@ -604,15 +635,15 @@ export default function ObjectDetail({ objectId, onNavigate }) {
           </div>
 
           {/* Governance Maturity Card */}
-          <div className="detail-card">
-            <h3>Governance Maturity</h3>
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+            <h3 className="text-[0.95rem] font-bold tracking-tight text-txt mb-4">Governance Maturity</h3>
             {(() => {
               const mlg = mlgAssessments[obj.id]
               if (!mlg) {
                 return (
-                  <div className="detail-fields">
-                    <p className="text-muted" style={{fontSize:'0.85rem',lineHeight:'1.6'}}>No MLG assessment yet.</p>
-                    <button className="btn-primary small" style={{alignSelf:'flex-start',marginTop:'0.25rem'}} onClick={() => onNavigate('mlg', obj.id)}>
+                  <div className="flex flex-col gap-3">
+                    <p className="text-txt-3" style={{fontSize:'0.85rem',lineHeight:'1.6'}}>No MLG assessment yet.</p>
+                    <button className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-3 py-1.5 text-[0.8rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 active:scale-[0.97] self-start" style={{marginTop:'0.25rem'}} onClick={() => onNavigate('mlg', obj.id)}>
                       Run Diagnostic
                     </button>
                   </div>
@@ -620,14 +651,14 @@ export default function ObjectDetail({ objectId, onNavigate }) {
               }
               const { score, tier } = computeMLGScore(mlg, obj)
               return (
-                <div className="detail-fields">
-                  <div className="detail-field">
-                    <span className="field-label">Tier</span>
-                    <span className="maturity-tag" style={{ backgroundColor: tier.bg, color: tier.color }}>{tier.tier} — {tier.label}</span>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">Tier</span>
+                    <span className="inline-flex items-center text-[0.72rem] font-bold px-2.5 py-1 rounded-full self-start" style={{ backgroundColor: tier.bg, color: tier.color }}>{tier.tier} — {tier.label}</span>
                   </div>
-                  <div className="detail-field">
-                    <span className="field-label">Score</span>
-                    <span className="field-value">{score} / 20</span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">Score</span>
+                    <span className="text-[0.85rem] text-txt">{score} / 20</span>
                   </div>
                   {MLG_PHASES.map((phase) => {
                     const phaseScore = phase.checkpoints.reduce((sum, cp) => {
@@ -635,13 +666,13 @@ export default function ObjectDetail({ objectId, onNavigate }) {
                       return sum + (ans === 'yes' ? 1 : ans === 'weak' ? 0.5 : 0)
                     }, 0)
                     return (
-                      <div key={phase.id} className="detail-field">
-                        <span className="field-label">P{phase.phase}: {phase.name}</span>
-                        <span className="field-value">{phaseScore}/{phase.checkpoints.length}</span>
+                      <div key={phase.id} className="flex flex-col gap-0.5">
+                        <span className="text-[0.65rem] font-bold uppercase tracking-[0.08em] text-txt-3">P{phase.phase}: {phase.name}</span>
+                        <span className="text-[0.85rem] text-txt">{phaseScore}/{phase.checkpoints.length}</span>
                       </div>
                     )
                   })}
-                  <button className="link-btn" style={{alignSelf:'flex-start',marginTop:'0.25rem'}} onClick={() => onNavigate('mlg', obj.id)}>
+                  <button className="bg-transparent border-none text-brand cursor-pointer font-sans text-[0.82rem] font-semibold hover:text-brand-deep transition-colors p-0 self-start" style={{marginTop:'0.25rem'}} onClick={() => onNavigate('mlg', obj.id)}>
                     Open Diagnostic
                   </button>
                 </div>
@@ -653,60 +684,141 @@ export default function ObjectDetail({ objectId, onNavigate }) {
 
       {/* Health Rationale */}
       {(obj.healthStatus === 'RED' || obj.healthStatus === 'AMBER') && obj.healthRationale && (
-        <div className="rationale-banner">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={obj.healthStatus === 'RED' ? '#dc2626' : '#ea580c'} strokeWidth="2" strokeLinecap="round">
+        <div className={`flex items-start gap-3 p-4 rounded-xl mb-6 ${obj.healthStatus === 'RED' ? 'bg-red-bg border border-red/10' : 'bg-amber-bg border border-amber/10'}`}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={obj.healthStatus === 'RED' ? '#dc2626' : '#ea580c'} strokeWidth="2" strokeLinecap="round" className="shrink-0 mt-0.5">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           <div>
-            <strong>{obj.healthStatus} Health Rationale</strong>
-            <p>{obj.healthRationale}</p>
+            <strong className="text-[0.85rem] font-bold text-txt block mb-0.5">{obj.healthStatus} Health Rationale</strong>
+            <p className="text-[0.82rem] text-txt-2 leading-relaxed m-0">{obj.healthRationale}</p>
           </div>
         </div>
       )}
 
       {/* Audit Trail */}
       {obj.history?.length > 0 && (
-        <div className="detail-section">
-          <div className="detail-section-header">
-            <h3>Change Log</h3>
-            <span className="dash-card-badge">{obj.history.length} entries</span>
+        <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 mb-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Change Log</h3>
+            <span className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">{obj.history.length} entries</span>
           </div>
-          <div className="audit-trail">
-            <div className="timeline">
-              {[...obj.history].reverse().map((entry, i) => (
-                <div key={i} className="timeline-item">
-                  <div className="timeline-dot" />
-                  <div className="timeline-content">
-                    <span className="timeline-status">{entry.action}</span>
-                    <span className="timeline-note">{entry.note}</span>
-                    <span className="timeline-time">{formatDate(entry.timestamp)}</span>
-                  </div>
+          <div className="flex flex-col">
+            {[...obj.history].reverse().map((entry, i) => (
+              <div key={i} className="flex gap-3 pb-4 last:pb-0 relative">
+                <div className="w-2.5 h-2.5 rounded-full bg-brand/30 mt-1.5 shrink-0 relative z-10" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[0.78rem] font-semibold text-txt">{entry.action}</span>
+                  <span className="text-[0.78rem] text-txt-2 mt-0.5">{entry.note}</span>
+                  <span className="text-[0.68rem] text-txt-3 mt-0.5">{formatDate(entry.timestamp)}</span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Related Gaps */}
-      <div className="detail-section">
-        <div className="detail-section-header">
-          <h3>Related Gaps ({objectGaps.length})</h3>
-          <button className="link-btn" onClick={() => onNavigate('onelist')}>Manage gaps</button>
+      {/* Remediation Items */}
+      <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Remediation Items ({openRemCount} open)</h3>
+          <button
+            className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-[10px] px-3 py-1.5 text-[0.8rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 active:scale-[0.97] inline-flex items-center gap-1.5"
+            onClick={() => setShowRemForm((v) => !v)}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Item
+          </button>
         </div>
-        {objectGaps.length === 0 ? (
-          <p className="text-muted">No gaps tracked for this object.</p>
-        ) : (
-          <div className="gap-mini-list">
-            {objectGaps.map((g) => (
-              <div key={g.id} className="gap-mini-item">
-                <span className={`gap-status-dot status-${g.status.toLowerCase().replace(' ', '-')}`} />
-                <span className="gap-mini-title">{g.title}</span>
-                <span className="gap-mini-status">{g.status}</span>
+
+        {/* Quick-add inline form */}
+        {showRemForm && (
+          <div className="flex items-end gap-2 mb-4 p-3 bg-subtle/60 rounded-xl animate-[fadeIn_0.18s_ease]">
+            <div className="flex-1 flex flex-col gap-1">
+              <label className="text-[0.72rem] font-semibold text-txt-3">Title</label>
+              <input
+                className="bg-white border border-border rounded-lg px-3 py-1.5 text-[0.85rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15 placeholder:text-txt-3"
+                value={remediationForm.title}
+                onChange={(e) => setRemediationForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="What needs fixing?"
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[0.72rem] font-semibold text-txt-3">Severity</label>
+              <div className="flex gap-1">
+                {REMEDIATION_SEVERITIES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className={`px-2.5 py-1.5 border border-border rounded-lg text-[0.78rem] font-semibold cursor-pointer font-sans transition-all duration-150 ${
+                      remediationForm.severity === s.id ? 'font-bold' : 'bg-white text-txt-2'
+                    }`}
+                    style={remediationForm.severity === s.id ? { backgroundColor: s.bg, color: s.color, borderColor: s.color } : {}}
+                    onClick={() => setRemediationForm((f) => ({ ...f, severity: s.id }))}
+                  >
+                    {s.label}
+                  </button>
+                ))}
               </div>
-            ))}
+            </div>
+            <button
+              className="bg-gradient-to-br from-brand to-brand-deep text-white border-none rounded-lg px-4 py-1.5 text-[0.82rem] font-semibold cursor-pointer font-sans transition-all duration-200 shadow-[0_2px_8px_rgba(37,99,235,0.3)] hover:-translate-y-0.5 active:scale-[0.97] disabled:opacity-45"
+              disabled={!remediationForm.title.trim()}
+              onClick={() => {
+                dispatch({ type: 'ADD_REMEDIATION_ITEM', payload: { objectId: obj.id, title: remediationForm.title.trim(), severity: remediationForm.severity, note: '' } })
+                setRemediationForm({ title: '', severity: 'AMBER' })
+                setShowRemForm(false)
+              }}
+            >
+              Add
+            </button>
+          </div>
+        )}
+
+        {remItems.length === 0 ? (
+          <p className="text-txt-3 text-[0.85rem]">No remediation items tracked for this object.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {remItems.map((item) => {
+              const sev = REMEDIATION_SEVERITIES.find((s) => s.id === item.severity) || REMEDIATION_SEVERITIES[1]
+              const statusDotColor = item.status === 'Open' ? 'bg-red' : item.status === 'In Progress' ? 'bg-amber' : 'bg-green'
+              return (
+                <div key={item.id} className="flex items-center gap-2.5 py-2.5 border-b border-border-light last:border-0">
+                  <span className="text-[0.68rem] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: sev.bg, color: sev.color }}>{sev.label}</span>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${statusDotColor}`} />
+                  <span className="text-[0.82rem] text-txt flex-1">{item.title}</span>
+                  <span className="text-[0.68rem] font-bold uppercase text-txt-3">{item.status}</span>
+                  <div className="flex gap-1">
+                    {item.status === 'Open' && (
+                      <button
+                        className="bg-white border border-border text-txt-2 rounded px-2 py-0.5 text-[0.72rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-subtle hover:border-gray-300"
+                        onClick={() => dispatch({ type: 'UPDATE_REMEDIATION_ITEM', payload: { objectId: obj.id, itemId: item.id, status: 'In Progress' } })}
+                      >
+                        Start
+                      </button>
+                    )}
+                    {item.status !== 'Resolved' && (
+                      <button
+                        className="bg-white border border-green/25 text-green rounded px-2 py-0.5 text-[0.72rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-green-bg hover:border-green/40"
+                        onClick={() => dispatch({ type: 'UPDATE_REMEDIATION_ITEM', payload: { objectId: obj.id, itemId: item.id, status: 'Resolved' } })}
+                      >
+                        Resolve
+                      </button>
+                    )}
+                    <button
+                      className="bg-white border border-red/25 text-red rounded px-2 py-0.5 text-[0.72rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-red-bg hover:border-red/40"
+                      onClick={() => dispatch({ type: 'REMOVE_REMEDIATION_ITEM', payload: { objectId: obj.id, itemId: item.id } })}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
