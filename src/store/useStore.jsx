@@ -1,0 +1,407 @@
+import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import { calcCompliance, uuid } from '../utils/compliance.js'
+import { SEED_STATE } from '../data/seedData.js'
+
+const StoreContext = createContext(null)
+const DispatchContext = createContext(null)
+
+const STORAGE_KEY = 'cpm_state'
+
+const INITIAL_STATE = {
+  objects: [],
+  gaps: [],
+  standupItems: [],
+  mlgAssessments: {},
+  frameworkOverrides: {},
+  attestations: {},       // { [objectId]: ['SOC2', 'SOX', ...] }
+  regulatoryQueue: [],    // [{ id, objectId, objectName, attestationId, confidence, rationale, detectedAt, status }]
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = { ...INITIAL_STATE, ...JSON.parse(raw) }
+      // If store exists but is empty, seed it
+      if (parsed.objects.length === 0 && parsed.gaps.length === 0) {
+        return { ...INITIAL_STATE, ...SEED_STATE }
+      }
+      return parsed
+    }
+  } catch { /* ignore */ }
+  // First load — seed with synthetic data
+  return { ...INITIAL_STATE, ...SEED_STATE }
+}
+
+function saveState(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch { /* ignore */ }
+}
+
+function newObject(data) {
+  const now = new Date().toISOString()
+  return {
+    id: uuid(),
+    listName: '',
+    productFamilies: [],
+    type: '',
+    criticality: 'Medium',
+    status: 'Active',
+    identifyingPerson: '',
+    owner: '',
+    operator: '',
+    controlClassification: 'Informal',
+    nistFamilies: [],
+    kpiNumerator: 0,
+    kpiDenominator: 0,
+    compliancePercent: 0,
+    reviewCadence: 'Monthly',
+    healthStatus: 'BLUE',
+    healthRationale: '',
+    description: '',
+    lastReviewDate: now.slice(0, 10),
+    nextReviewDate: '',
+    jiraL1: '',
+    jiraL2: '',
+    environment: 'Production',
+    dataClassification: 'Internal',
+    businessUnit: '',
+    history: [{ action: 'Created', note: 'Object added to inventory', timestamp: now }],
+    createdAt: now,
+    updatedAt: now,
+    ...data,
+  }
+}
+
+function reducer(state, action) {
+  switch (action.type) {
+    // ── Objects ──
+    case 'ADD_OBJECT': {
+      const obj = newObject(action.payload)
+      // Clear control-only fields for non-Control types
+      if (obj.type !== 'Control') {
+        obj.controlClassification = ''
+        obj.controlObjective = ''
+        obj.controlType = ''
+        obj.implementationType = ''
+        obj.executionFrequency = ''
+        obj.nistFamilies = []
+      }
+      obj.compliancePercent = calcCompliance(obj.kpiNumerator, obj.kpiDenominator)
+      return { ...state, objects: [...state.objects, obj] }
+    }
+    case 'UPDATE_OBJECT': {
+      const objects = state.objects.map((o) => {
+        if (o.id !== action.payload.id) return o
+        const now = new Date().toISOString()
+        const updated = { ...o, ...action.payload, updatedAt: now }
+        updated.compliancePercent = calcCompliance(updated.kpiNumerator, updated.kpiDenominator)
+        // Track changes in history
+        const history = [...(o.history || [])]
+        if (action.payload.healthStatus && action.payload.healthStatus !== o.healthStatus) {
+          history.push({ action: `Health → ${action.payload.healthStatus}`, note: `Changed from ${o.healthStatus} to ${action.payload.healthStatus}`, timestamp: now })
+        }
+        if (action.payload.status && action.payload.status !== o.status) {
+          history.push({ action: `Status → ${action.payload.status}`, note: `Changed from ${o.status} to ${action.payload.status}`, timestamp: now })
+        }
+        if (action.payload.controlClassification && action.payload.controlClassification !== o.controlClassification) {
+          history.push({ action: `Controls → ${action.payload.controlClassification}`, note: `Changed from ${o.controlClassification} to ${action.payload.controlClassification}`, timestamp: now })
+        }
+        if (action.payload.owner && action.payload.owner !== o.owner) {
+          history.push({ action: 'Owner changed', note: `${o.owner || 'Unassigned'} → ${action.payload.owner}`, timestamp: now })
+        }
+        // If no specific tracked field changed but something was edited
+        if (history.length === (o.history || []).length) {
+          history.push({ action: 'Updated', note: 'Object details modified', timestamp: now })
+        }
+        updated.history = history
+        return updated
+      })
+      return { ...state, objects }
+    }
+    case 'DELETE_OBJECT': {
+      return {
+        ...state,
+        objects: state.objects.filter((o) => o.id !== action.payload),
+        gaps: state.gaps.map((g) => {
+          // Remove deleted object from multi-select objectIds
+          const ids = (g.objectIds || (g.objectId ? [g.objectId] : [])).filter((id) => id !== action.payload)
+          return { ...g, objectIds: ids }
+        }),
+      }
+    }
+    case 'IMPORT_OBJECTS': {
+      const imported = action.payload.map((data) => {
+        const existing = state.objects.find(
+          (o) => o.listName && o.listName === data.listName
+        )
+        if (existing) {
+          const merged = { ...existing, ...data, updatedAt: new Date().toISOString() }
+          merged.compliancePercent = calcCompliance(merged.kpiNumerator, merged.kpiDenominator)
+          return merged
+        }
+        const obj = newObject(data)
+        obj.compliancePercent = calcCompliance(obj.kpiNumerator, obj.kpiDenominator)
+        return obj
+      })
+      const existingNames = new Set(imported.filter((o) => o.listName).map((o) => o.listName))
+      const kept = state.objects.filter((o) => !existingNames.has(o.listName))
+      return { ...state, objects: [...kept, ...imported] }
+    }
+
+    // ── Gaps (OneList) ──
+    case 'ADD_GAP': {
+      const gap = {
+        id: uuid(),
+        objectIds: [],
+        title: '',
+        description: '',
+        status: 'Open',
+        healthStatus: 'RED',
+        controlClassification: 'Informal',
+        nistFamilies: [],
+        kpiNumerator: 0,
+        kpiDenominator: 0,
+        compliancePercent: 0,
+        remediationNote: '',
+        expiryDate: '',
+        jiraL1: '',
+        jiraL2: '',
+        history: [{ status: 'Open', note: 'Gap created', timestamp: new Date().toISOString() }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        ...action.payload,
+      }
+      // Migrate legacy single objectId to objectIds array
+      if (gap.objectId && !gap.objectIds?.length) {
+        gap.objectIds = [gap.objectId]
+      }
+      delete gap.objectId
+      gap.compliancePercent = calcCompliance(gap.kpiNumerator, gap.kpiDenominator)
+      return { ...state, gaps: [...state.gaps, gap] }
+    }
+    case 'UPDATE_GAP': {
+      const gaps = state.gaps.map((g) => {
+        if (g.id !== action.payload.id) return g
+        const updated = { ...g, ...action.payload, updatedAt: new Date().toISOString() }
+        // Migrate legacy objectId
+        if (updated.objectId && !updated.objectIds?.length) {
+          updated.objectIds = [updated.objectId]
+        }
+        delete updated.objectId
+        if (updated.kpiNumerator !== undefined || updated.kpiDenominator !== undefined) {
+          updated.compliancePercent = calcCompliance(updated.kpiNumerator, updated.kpiDenominator)
+        }
+        if (action.payload.status && action.payload.status !== g.status) {
+          updated.history = [
+            ...g.history,
+            {
+              status: action.payload.status,
+              note: action.payload.remediationNote || `Status changed to ${action.payload.status}`,
+              timestamp: new Date().toISOString(),
+            },
+          ]
+        }
+        if (action.payload.healthStatus && action.payload.healthStatus !== g.healthStatus) {
+          updated.history = [
+            ...(updated.history || g.history),
+            {
+              status: `Health → ${action.payload.healthStatus}`,
+              note: `Health status changed to ${action.payload.healthStatus}`,
+              timestamp: new Date().toISOString(),
+            },
+          ]
+        }
+        return updated
+      })
+      return { ...state, gaps }
+    }
+    case 'DELETE_GAP':
+      return { ...state, gaps: state.gaps.filter((g) => g.id !== action.payload) }
+
+    // ── Promote Gap to Object ──
+    case 'PROMOTE_GAP': {
+      const gap = state.gaps.find((g) => g.id === action.payload)
+      if (!gap) return state
+      const newObj = newObject({
+        listName: gap.title,
+        description: gap.description || '',
+        healthStatus: 'GREEN',
+        controlClassification: gap.controlClassification || 'Informal',
+        nistFamilies: gap.nistFamilies || [],
+        kpiNumerator: gap.kpiNumerator || 0,
+        kpiDenominator: gap.kpiDenominator || 0,
+        jiraL1: gap.jiraL1 || '',
+        jiraL2: gap.jiraL2 || '',
+        history: [{ action: 'Promoted', note: `Promoted from gap: "${gap.title}"`, timestamp: new Date().toISOString() }],
+      })
+      newObj.compliancePercent = calcCompliance(newObj.kpiNumerator, newObj.kpiDenominator)
+      const updatedGap = {
+        ...gap,
+        status: 'Closed',
+        updatedAt: new Date().toISOString(),
+        history: [
+          ...(gap.history || []),
+          {
+            status: 'Promoted',
+            note: `Promoted to Object Inventory as "${newObj.listName}"`,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }
+      return {
+        ...state,
+        objects: [...state.objects, newObj],
+        gaps: state.gaps.map((g) => (g.id === gap.id ? updatedGap : g)),
+      }
+    }
+
+    // ── Standup Items ──
+    case 'ADD_STANDUP': {
+      const item = {
+        id: uuid(),
+        action: '',
+        owner: '',
+        product: 'General',
+        dueDate: '',
+        status: 'Open',
+        createdAt: new Date().toISOString(),
+        ...action.payload,
+      }
+      return { ...state, standupItems: [...state.standupItems, item] }
+    }
+    case 'UPDATE_STANDUP': {
+      const standupItems = state.standupItems.map((s) =>
+        s.id === action.payload.id ? { ...s, ...action.payload } : s
+      )
+      return { ...state, standupItems }
+    }
+    case 'DELETE_STANDUP':
+      return { ...state, standupItems: state.standupItems.filter((s) => s.id !== action.payload) }
+
+    // ── MLG Assessments ──
+    case 'SET_MLG': {
+      const { objectId, ...data } = action.payload
+      return {
+        ...state,
+        mlgAssessments: { ...state.mlgAssessments, [objectId]: data },
+      }
+    }
+
+    // ── Framework Overrides ──
+    case 'SET_FRAMEWORK_OVERRIDE': {
+      const { framework, controlId, level, note } = action.payload
+      const existing = state.frameworkOverrides || {}
+      const fwOverrides = { ...(existing[framework] || {}) }
+      fwOverrides[controlId] = { level, note, timestamp: new Date().toISOString() }
+      return { ...state, frameworkOverrides: { ...existing, [framework]: fwOverrides } }
+    }
+    case 'CLEAR_FRAMEWORK_OVERRIDE': {
+      const { framework, controlId } = action.payload
+      const existing = state.frameworkOverrides || {}
+      const fwOverrides = { ...(existing[framework] || {}) }
+      delete fwOverrides[controlId]
+      return { ...state, frameworkOverrides: { ...existing, [framework]: fwOverrides } }
+    }
+
+    // ── Attestations ──
+    case 'SET_ATTESTATIONS': {
+      const { objectId, attestationIds } = action.payload
+      return {
+        ...state,
+        attestations: { ...state.attestations, [objectId]: attestationIds },
+      }
+    }
+    case 'ADD_ATTESTATION': {
+      const { objectId, attestationId } = action.payload
+      const current = state.attestations[objectId] || []
+      if (current.includes(attestationId)) return state
+      return {
+        ...state,
+        attestations: { ...state.attestations, [objectId]: [...current, attestationId] },
+      }
+    }
+    case 'REMOVE_ATTESTATION': {
+      const { objectId, attestationId } = action.payload
+      const current = state.attestations[objectId] || []
+      return {
+        ...state,
+        attestations: { ...state.attestations, [objectId]: current.filter((a) => a !== attestationId) },
+      }
+    }
+
+    // ── Regulatory Queue ──
+    case 'ADD_REGULATORY_DETECTIONS': {
+      // payload: [{ objectId, objectName, attestationId, confidence, rationale }]
+      const newItems = action.payload.map((item) => ({
+        id: uuid(),
+        ...item,
+        detectedAt: new Date().toISOString(),
+        status: 'pending',
+      }))
+      return {
+        ...state,
+        regulatoryQueue: [...state.regulatoryQueue, ...newItems],
+      }
+    }
+    case 'RESOLVE_REGULATORY_ITEM': {
+      // payload: { id, resolution: 'confirmed' | 'dismissed' }
+      const { id, resolution } = action.payload
+      const queue = state.regulatoryQueue.map((item) =>
+        item.id === id ? { ...item, status: resolution, resolvedAt: new Date().toISOString() } : item
+      )
+      // If confirmed, also add the attestation to the object
+      if (resolution === 'confirmed') {
+        const item = state.regulatoryQueue.find((q) => q.id === id)
+        if (item) {
+          const current = state.attestations[item.objectId] || []
+          if (!current.includes(item.attestationId)) {
+            return {
+              ...state,
+              regulatoryQueue: queue,
+              attestations: { ...state.attestations, [item.objectId]: [...current, item.attestationId] },
+            }
+          }
+        }
+      }
+      return { ...state, regulatoryQueue: queue }
+    }
+    case 'CLEAR_RESOLVED_QUEUE':
+      return {
+        ...state,
+        regulatoryQueue: state.regulatoryQueue.filter((item) => item.status === 'pending'),
+      }
+
+    // ── Bulk ──
+    case 'RESTORE_STATE':
+      return { ...INITIAL_STATE, ...action.payload }
+
+    default:
+      return state
+  }
+}
+
+export function StoreProvider({ children }) {
+  const [state, dispatch] = useReducer(reducer, null, loadState)
+
+  useEffect(() => {
+    saveState(state)
+  }, [state])
+
+  return (
+    <StoreContext.Provider value={state}>
+      <DispatchContext.Provider value={dispatch}>
+        {children}
+      </DispatchContext.Provider>
+    </StoreContext.Provider>
+  )
+}
+
+export function useStore() {
+  return useContext(StoreContext)
+}
+
+export function useDispatch() {
+  return useContext(DispatchContext)
+}

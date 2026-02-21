@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vite build)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 8 npx vite:*)",
+      "WebSearch",
+      "WebFetch(domain:www.bootstrapdash.com)",
+      "WebFetch(domain:colorhero.io)",
+      "WebFetch(domain:www.designmonks.co)",
+      "WebFetch(domain:www.saasframe.io)",
+      "WebFetch(domain:blog.logrocket.com)",
+      "WebFetch(domain:www.thefrontendcompany.com)",
+      "WebFetch(domain:fuselabcreative.com)",
+      "WebFetch(domain:www.sanjaydey.com)",
+      "WebFetch(domain:www.aufaitux.com)",
+      "WebFetch(domain:medium.muz.li)",
+      "WebFetch(domain:www.orbix.studio)",
+      "WebFetch(domain:ui.shadcn.com)",
+      "WebFetch(domain:gist.github.com)",
+      "Bash(node:*)",
+      "Bash(xxd \"/Users/arcos/Desktop/risk assessment/isr-ops/.claude/agents/pm-synthetic-tester.md\" | head -20)",
+      "Bash(xxd \"/Users/arcos/Desktop/risk assessment/isr-ops/.claude/agents/pm-synthetic-tester.md\" | grep '5c6e')"
+    ]
+  }
+}
