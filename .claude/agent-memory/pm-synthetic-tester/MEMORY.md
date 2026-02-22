@@ -12,7 +12,7 @@
 - Gaps link to objects via `objectIds` array (multi-select); legacy `objectId` migrated
 
 ## Key Files
-- `/src/store/useStore.jsx` - all state management + PROMOTE_GAP action
+- `/src/store/useStore.jsx` - all state management (ADD_OBJECT + UPDATE_GAP for promotion)
 - `/src/components/Remediation/GapTracker.jsx` - gap form + list (24KB, largest component)
 - `/src/components/OneList/OneListView.jsx` - object table view
 - `/src/components/OneList/ObjectDetail.jsx` - object detail + related gaps

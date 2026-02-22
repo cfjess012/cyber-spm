@@ -60,7 +60,7 @@ Adjustments: Informal Controls get -5% reduction. BLUE health forces "New" label
 
 ### Data Flow: Gap → Object
 
-Pipeline items (gaps) in `GapTracker.jsx` follow: **Log → Triage → Promote**. Promotion (`PROMOTE_GAP`) creates a new object in the inventory and closes the pipeline item. Once objects exist, issues are tracked via `remediationItems[]` on the object itself.
+Pipeline items (gaps) in `GapTracker.jsx` follow: **Log → Triage → Promote**. Promotion uses `ADD_OBJECT` + `UPDATE_GAP` (handled in `OneListView.handleSave`) to create a new object in the inventory and close the pipeline item. Once objects exist, issues are tracked via `remediationItems[]` on the object itself.
 
 ### Framework Maturity
 

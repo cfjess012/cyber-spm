@@ -96,7 +96,7 @@ function LogForm({ onSave, onEnrich, onClose, knownOwners }) {
       if (enrich.scope.trim()) updates.scope = enrich.scope.trim()
     }
     if (Object.keys(updates).length > 0) {
-      onEnrich({ id: gapId, ...updates })
+      onEnrich({ id: gapId, identifier: form.identifier, ...updates })
     }
     onClose()
   }
@@ -666,6 +666,8 @@ function EditForm({ gap, onSave, onClose, knownOwners }) {
     if (submitting) return
     if (!form.productFamily) { setFormError('Product family is required'); return }
     if (!form.title.trim()) { setFormError('Title is required'); return }
+    if (!form.targetType) { setFormError('Target type is required'); return }
+    if (!form.owner.trim()) { setFormError('Owner is required'); return }
     setFormError('')
     setSubmitting(true)
     onSave(form)
@@ -978,7 +980,7 @@ export default function GapTracker({ onNavigate }) {
   }
 
   const handleLogEnrich = (data) => {
-    dispatch({ type: 'UPDATE_GAP', payload: data })
+    dispatch({ type: 'ENRICH_GAP', payload: data })
   }
 
   const handleTriageSave = (data) => {
@@ -1084,7 +1086,7 @@ export default function GapTracker({ onNavigate }) {
             )}
             <div>
               <div className="font-semibold text-[0.88rem] tracking-tight text-txt">{gap.title}</div>
-              <div className="text-[0.75rem] text-txt-3 mt-px">{getPipelineInfo(gap)} &middot; {formatDate(gap.createdAt)}</div>
+              <div className="text-[0.75rem] text-txt-3 mt-px flex items-center gap-1.5">{getPipelineInfo(gap)} &middot; {formatDate(gap.createdAt)}{gap.status !== 'Closed' && !gap.operator && <span className="inline-flex items-center gap-0.5 px-1.5 py-px rounded-full bg-amber-bg text-amber text-[0.65rem] font-bold whitespace-nowrap" title="No operator assigned — required for promotion"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 9v4"/><circle cx="12" cy="17" r="0.5"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>No operator</span>}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1111,6 +1113,13 @@ export default function GapTracker({ onNavigate }) {
             <button className="ml-auto whitespace-nowrap bg-white border border-brand/20 text-brand rounded-md px-3 py-1.5 text-[0.78rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-brand-light hover:border-brand/30" onClick={(e) => { e.stopPropagation(); handlePromote(gap) }}>Promote to Object</button>
           </div>
         )}
+        {gap.status === 'Closed' && gap.promotedToObjectId && (
+          <div className="flex items-center gap-2 px-3.5 py-2.5 mx-3.5 bg-green-bg border border-green/15 rounded-[10px] text-[0.78rem] text-green">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span className="font-medium">Promoted to Object Inventory</span>
+            <button className="ml-auto whitespace-nowrap bg-white border border-green/20 text-green rounded-md px-3 py-1.5 text-[0.78rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-green-bg hover:border-green/30" onClick={(e) => { e.stopPropagation(); onNavigate('object-detail', gap.promotedToObjectId) }}>View Object &rarr;</button>
+          </div>
+        )}
 
         {expanded && (
           <div className="px-4 pb-4 animate-[fadeIn_0.18s_ease]">
@@ -1134,12 +1143,13 @@ export default function GapTracker({ onNavigate }) {
                   <span className="text-[0.82rem] font-semibold text-txt">{gap.identifier}</span>
                 </div>
               )}
-              {gap.operator && (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[0.72rem] font-semibold text-txt-3 uppercase tracking-wide">Operator</span>
-                  <span className="text-[0.82rem] font-semibold text-txt">{gap.operator}</span>
-                </div>
-              )}
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[0.72rem] font-semibold text-txt-3 uppercase tracking-wide">Operator</span>
+                {gap.operator
+                  ? <span className="text-[0.82rem] font-semibold text-txt">{gap.operator}</span>
+                  : <span className="inline-flex items-center gap-1 text-[0.78rem] font-semibold text-amber" title="No operator assigned — required for promotion"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 9v4"/><circle cx="12" cy="17" r="0.5"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Unassigned</span>
+                }
+              </div>
               {(gap.kpiNumerator > 0 || gap.kpiDenominator > 0) && (
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[0.72rem] font-semibold text-txt-3 uppercase tracking-wide">KPI</span>
@@ -1420,7 +1430,10 @@ export default function GapTracker({ onNavigate }) {
                                 <span className="text-[0.78rem] text-txt-2">{gap.owner || '—'}</span>
                               </td>
                               <td className="px-3 py-2.5">
-                                <span className="text-[0.78rem] text-txt-3">{gap.operator || '—'}</span>
+                                {gap.operator
+                                  ? <span className="text-[0.78rem] text-txt-3">{gap.operator}</span>
+                                  : <span className="inline-flex items-center gap-0.5 text-[0.7rem] font-bold text-amber" title="No operator assigned — required for promotion"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M12 9v4"/><circle cx="12" cy="17" r="0.5"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>—</span>
+                                }
                               </td>
                               <td className="px-3 py-2.5">
                                 <span className="px-2 py-0.5 rounded-full text-[0.72rem] font-bold whitespace-nowrap" style={{ backgroundColor: gs.bg, color: gs.color }}>{gs.id}</span>
