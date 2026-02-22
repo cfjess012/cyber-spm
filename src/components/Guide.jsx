@@ -111,6 +111,7 @@ const TABS = [
   { id: 'taxonomy', label: 'Taxonomy', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> },
   { id: 'lifecycle', label: 'Lifecycle', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/></svg> },
   { id: 'scoring', label: 'Scoring', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+  { id: 'compliance', label: 'Compliance', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg> },
   { id: 'features', label: 'Features', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> },
 ]
 
@@ -487,6 +488,188 @@ export default function Guide({ onNavigate }) {
 
           <Disclosure title="Live Posture Anatomy" defaultOpen>
             <PostureAnatomyCards objects={objects} mlgAssessments={mlgAssessments} onNavigate={onNavigate} />
+          </Disclosure>
+        </div>
+      )}
+
+      {/* ── Compliance Assessments Tab ── */}
+      {activeTab === 'compliance' && (
+        <div className="flex flex-col gap-5 animate-[fadeIn_0.2s_ease-out]">
+          <div className="mb-1">
+            <h2 className="text-[1.35rem] font-[800] tracking-tight text-txt mb-1">Compliance Assessments</h2>
+            <p className="text-txt-2 text-[0.88rem] leading-relaxed max-w-[640px]">
+              Safeguard-level compliance assessment evaluates your security posture against industry
+              frameworks using a dual-axis model: Policy Status and Implementation Status.
+            </p>
+          </div>
+
+          {/* Dual-Axis Model */}
+          <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+            <h3 className="text-[0.95rem] font-bold tracking-tight text-txt mb-3">Dual-Axis Scoring Model</h3>
+            <p className="text-[0.82rem] text-txt-2 leading-relaxed mb-4">
+              Each safeguard is assessed on two independent axes. The combined Safeguard Score weights
+              implementation more heavily because a policy without execution provides limited risk reduction.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-subtle/40 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#7c3aed] shrink-0" />
+                  <span className="text-[0.85rem] font-semibold text-txt">Policy Status</span>
+                  <span className="text-[0.72rem] font-bold text-txt-3 ml-auto">40% weight</span>
+                </div>
+                <p className="text-[0.78rem] text-txt-2 leading-relaxed">
+                  Does a written policy, standard, or procedure exist that addresses this safeguard?
+                  Scored from 0% (no policy) to 100% (fully documented and approved).
+                </p>
+              </div>
+              <div className="bg-subtle/40 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb] shrink-0" />
+                  <span className="text-[0.85rem] font-semibold text-txt">Implementation Status</span>
+                  <span className="text-[0.72rem] font-bold text-txt-3 ml-auto">60% weight</span>
+                </div>
+                <p className="text-[0.78rem] text-txt-2 leading-relaxed">
+                  Is the safeguard technically deployed and operating effectively?
+                  Scored from 0% (not implemented) to 100% (fully deployed, monitored, and tested).
+                </p>
+              </div>
+            </div>
+            <div className="bg-brand/[0.04] rounded-xl p-4 border border-brand/10">
+              <span className="text-[0.82rem] font-semibold text-txt">Safeguard Score</span>
+              <span className="text-[0.82rem] text-txt-2 ml-2">= Policy x 0.4 + Implementation x 0.6</span>
+            </div>
+          </div>
+
+          {/* Supported Frameworks */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { name: 'CIS v8', count: 153, color: '#6366f1', bg: '#eef2ff', desc: 'Center for Internet Security Critical Security Controls with 153 safeguards across 18 control families.' },
+              { name: 'NIST CSF 2.0', count: '~106', color: '#8b5cf6', bg: '#f5f3ff', desc: 'NIST Cybersecurity Framework 2.0 with approximately 106 subcategories across 6 core functions.' },
+              { name: 'GLBA', count: 47, color: '#0ea5e9', bg: '#f0f9ff', desc: 'Gramm-Leach-Bliley Act Safeguards Rule with 47 requirements for financial institution data protection.' },
+              { name: 'NYDFS', count: 43, color: '#d97706', bg: '#fffbeb', desc: '23 NYCRR 500 (NYDFS Cybersecurity Regulation) with 43 requirements for financial services companies.' },
+            ].map((fw) => (
+              <div key={fw.name} className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-4 border-t-[3px]" style={{ borderTopColor: fw.color }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[0.72rem] font-bold" style={{ backgroundColor: fw.bg, color: fw.color }}>
+                    {fw.count}
+                  </div>
+                  <span className="text-[0.92rem] font-bold tracking-tight text-txt">{fw.name}</span>
+                </div>
+                <p className="text-[0.78rem] text-txt-2 leading-relaxed">{fw.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Maturity Mapping */}
+          <Disclosure title="Score to CMMI Maturity Mapping" defaultOpen>
+            <p className="text-[0.82rem] text-txt-2 leading-relaxed mb-4">
+              Each safeguard's combined score maps to a CMMI maturity level. Framework-level maturity
+              is the average of all its safeguard scores, then mapped through the same bands.
+            </p>
+            <div className="flex flex-col gap-2">
+              {[
+                { level: 'L0 — Incomplete', range: '0-10%', color: '#dc2626', bg: '#fef2f2', desc: 'Safeguard is absent or not addressed.' },
+                { level: 'L1 — Initial', range: '11-30%', color: '#ea580c', bg: '#fff7ed', desc: 'Ad-hoc or reactive. Some awareness but no formal process.' },
+                { level: 'L2 — Developing', range: '31-55%', color: '#d97706', bg: '#fffbeb', desc: 'Documented but inconsistently applied. Partial coverage.' },
+                { level: 'L3 — Defined', range: '56-75%', color: '#2563eb', bg: '#eff6ff', desc: 'Standardized across the organization. Consistently executed.' },
+                { level: 'L4 — Managed', range: '76-90%', color: '#7c3aed', bg: '#f5f3ff', desc: 'Measured and monitored. Quantitative management of processes.' },
+                { level: 'L5 — Optimizing', range: '91-100%', color: '#16a34a', bg: '#f0fdf4', desc: 'Continuously improved. Proactive refinement based on metrics.' },
+              ].map((m) => (
+                <div key={m.level} className="flex items-center gap-3 rounded-lg p-3" style={{ backgroundColor: m.bg }}>
+                  <span className="text-[0.78rem] font-bold shrink-0 w-32" style={{ color: m.color }}>{m.level}</span>
+                  <span className="text-[0.72rem] font-bold text-txt-3 shrink-0 w-16">{m.range}</span>
+                  <span className="text-[0.78rem] text-txt-2">{m.desc}</span>
+                </div>
+              ))}
+            </div>
+          </Disclosure>
+
+          {/* CIS Implementation Groups */}
+          <Disclosure title="CIS Implementation Groups (IG1 / IG2 / IG3)">
+            <p className="text-[0.82rem] text-txt-2 leading-relaxed mb-4">
+              CIS v8 organizes its 153 safeguards into three Implementation Groups based on organizational
+              risk profile and resources. The IG filter lets you scope your assessment to what applies to you.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-subtle/40 rounded-xl p-4">
+                <span className="text-[0.85rem] font-bold text-[#16a34a] block mb-1">IG1 — Essential Hygiene</span>
+                <p className="text-[0.78rem] text-txt-2 leading-relaxed">
+                  The minimum set every organization should implement. Focuses on the highest-value,
+                  lowest-complexity safeguards. Suitable for small organizations with limited IT resources.
+                </p>
+              </div>
+              <div className="bg-subtle/40 rounded-xl p-4">
+                <span className="text-[0.85rem] font-bold text-[#2563eb] block mb-1">IG2 — Expanded Coverage</span>
+                <p className="text-[0.78rem] text-txt-2 leading-relaxed">
+                  Adds safeguards for organizations managing sensitive data at enterprise scale.
+                  Includes all IG1 safeguards plus additional technical and operational controls.
+                </p>
+              </div>
+              <div className="bg-subtle/40 rounded-xl p-4">
+                <span className="text-[0.85rem] font-bold text-[#7c3aed] block mb-1">IG3 — Comprehensive</span>
+                <p className="text-[0.78rem] text-txt-2 leading-relaxed">
+                  The full set for organizations facing sophisticated threats. Includes all 153 safeguards
+                  with advanced capabilities like penetration testing and red team exercises.
+                </p>
+              </div>
+            </div>
+          </Disclosure>
+
+          {/* Workflow: Gaps from Safeguards */}
+          <Disclosure title="Creating Gaps from Failing Safeguards">
+            <div className="flex flex-col gap-3">
+              <p className="text-[0.82rem] text-txt-2 leading-relaxed">
+                When a safeguard scores below your threshold, you can create a pipeline item (gap)
+                directly from the assessment view. This connects the compliance finding to your
+                remediation workflow.
+              </p>
+              <div className="flex items-start gap-3">
+                <span className="w-7 h-7 rounded-full bg-red/10 text-red flex items-center justify-center shrink-0 text-[0.72rem] font-bold">1</span>
+                <div>
+                  <strong className="text-[0.85rem] text-txt">Identify</strong>
+                  <p className="text-[0.82rem] text-txt-2">Review safeguards with low scores in the assessment table. Look for gaps in policy or implementation.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="w-7 h-7 rounded-full bg-amber/10 text-amber flex items-center justify-center shrink-0 text-[0.72rem] font-bold">2</span>
+                <div>
+                  <strong className="text-[0.85rem] text-txt">Create Gap</strong>
+                  <p className="text-[0.82rem] text-txt-2">Click the gap action on any safeguard row. A new pipeline item is created in the OneList, pre-filled with the framework and safeguard details.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="w-7 h-7 rounded-full bg-green/10 text-green flex items-center justify-center shrink-0 text-[0.72rem] font-bold">3</span>
+                <div>
+                  <strong className="text-[0.85rem] text-txt">Triage and Promote</strong>
+                  <p className="text-[0.82rem] text-txt-2">The pipeline item follows the standard OneList workflow: triage with owner and criticality, then promote to the Object Inventory when remediated.</p>
+                </div>
+              </div>
+            </div>
+          </Disclosure>
+
+          {/* Compliance Dashboard */}
+          <Disclosure title="Compliance Dashboard and Trending">
+            <p className="text-[0.82rem] text-txt-2 leading-relaxed mb-3">
+              The compliance dashboard provides scorecards for each framework showing overall maturity,
+              the number of assessed safeguards, and average scores. Compliance snapshots capture
+              point-in-time scores so you can track improvement over time.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-subtle/40 rounded-xl p-4">
+                <span className="text-[0.85rem] font-bold text-txt block mb-1">Framework Scorecards</span>
+                <p className="text-[0.78rem] text-txt-2 leading-relaxed">
+                  Each framework displays its overall score, maturity level, assessed vs. total safeguards,
+                  and a breakdown by control family or function.
+                </p>
+              </div>
+              <div className="bg-subtle/40 rounded-xl p-4">
+                <span className="text-[0.85rem] font-bold text-txt block mb-1">Compliance Snapshots</span>
+                <p className="text-[0.78rem] text-txt-2 leading-relaxed">
+                  Save a snapshot at any time to record your current scores. The trending view shows
+                  how each framework's maturity has changed across snapshots.
+                </p>
+              </div>
+            </div>
           </Disclosure>
         </div>
       )}

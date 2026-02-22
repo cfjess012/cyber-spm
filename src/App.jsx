@@ -9,6 +9,8 @@ import StandupView from './components/Standup/StandupView.jsx'
 import ExportImport from './components/DataPortability/ExportImport.jsx'
 import CISAssessment from './components/Frameworks/CISAssessment.jsx'
 import NISTCSFAssessment from './components/Frameworks/NISTCSFAssessment.jsx'
+import GLBAAssessment from './components/Frameworks/GLBAAssessment.jsx'
+import NYDFSAssessment from './components/Frameworks/NYDFSAssessment.jsx'
 import RegulatoryQueue from './components/Regulatory/RegulatoryQueue.jsx'
 import Guide from './components/Guide.jsx'
 
@@ -56,6 +58,12 @@ export default function App() {
       break
     case 'nist-csf':
       content = <NISTCSFAssessment onNavigate={navigate} />
+      break
+    case 'glba':
+      content = <GLBAAssessment onNavigate={navigate} />
+      break
+    case 'nydfs':
+      content = <NYDFSAssessment onNavigate={navigate} />
       break
     case 'regulatory':
       content = <RegulatoryQueue onNavigate={navigate} />

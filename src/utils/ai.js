@@ -1,9 +1,23 @@
 const AI_BASE = '/api/ai'
 
+function getProvider() {
+  try {
+    const raw = localStorage.getItem('cpm_state')
+    if (raw) {
+      const state = JSON.parse(raw)
+      return state.aiProvider || 'ollama'
+    }
+  } catch { /* ignore */ }
+  return 'ollama'
+}
+
 async function post(path, body) {
   const res = await fetch(`${AI_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-AI-Provider': getProvider(),
+    },
     body: JSON.stringify(body),
   })
   if (!res.ok) {
@@ -13,12 +27,21 @@ async function post(path, body) {
   return res.json()
 }
 
+export async function getAiHealth() {
+  const res = await fetch('/api/health')
+  return res.json()
+}
+
 export async function getInsights(state) {
   return post('/insights', state)
 }
 
 export async function autofillObject(description) {
   return post('/autofill', { description })
+}
+
+export async function triageAugment(title, description) {
+  return post('/triage-augment', { title, description })
 }
 
 export async function assessRisk(obj) {
@@ -65,4 +88,8 @@ export async function assessKpiCoherence(obj) {
 
 export async function assessControlCoherence(obj) {
   return post('/control-coherence', obj)
+}
+
+export async function assessSafeguards(payload) {
+  return post('/safeguard-assess', payload)
 }

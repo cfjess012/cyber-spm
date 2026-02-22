@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
+import { useStore, useDispatch } from '../store/useStore.jsx'
+import { getAiHealth } from '../utils/ai.js'
 
 /**
  * Reusable AI response panel — slides in from right or renders inline.
@@ -214,6 +216,62 @@ export function AiError({ error, onRetry }) {
           Retry
         </button>
       )}
+    </div>
+  )
+}
+
+export function AiProviderToggle() {
+  const { aiProvider } = useStore()
+  const dispatch = useDispatch()
+  const [claudeAvailable, setClaudeAvailable] = useState(null)
+
+  useEffect(() => {
+    getAiHealth()
+      .then((data) => setClaudeAvailable(data.providers?.claude?.available || false))
+      .catch(() => setClaudeAvailable(false))
+  }, [])
+
+  const setProvider = (p) => dispatch({ type: 'SET_AI_PROVIDER', payload: { provider: p } })
+  const active = aiProvider || 'ollama'
+
+  if (claudeAvailable === null) return null
+
+  if (!claudeAvailable) {
+    return (
+      <div className="flex items-center gap-2 px-1 py-1.5">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/30">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span className="text-[0.7rem] text-white/35 font-medium">AI: Local (Ollama)</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5 px-1 py-1.5">
+      <span className="text-[0.6rem] font-bold uppercase tracking-[0.08em] text-white/30">AI Provider</span>
+      <div className="flex rounded-lg overflow-hidden border border-white/10">
+        <button
+          className={`flex-1 text-[0.7rem] font-semibold py-1.5 px-2 border-none cursor-pointer font-sans transition-all duration-150 ${
+            active === 'ollama'
+              ? 'bg-white/[0.12] text-white'
+              : 'bg-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.05]'
+          }`}
+          onClick={() => setProvider('ollama')}
+        >
+          Local
+        </button>
+        <button
+          className={`flex-1 text-[0.7rem] font-semibold py-1.5 px-2 border-none border-l border-l-white/10 cursor-pointer font-sans transition-all duration-150 ${
+            active === 'claude'
+              ? 'bg-gradient-to-r from-[#7c3aed]/30 to-[#6d28d9]/30 text-purple-300'
+              : 'bg-transparent text-white/35 hover:text-white/60 hover:bg-white/[0.05]'
+          }`}
+          onClick={() => setProvider('claude')}
+        >
+          Claude
+        </button>
+      </div>
     </div>
   )
 }

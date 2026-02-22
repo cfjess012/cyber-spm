@@ -194,21 +194,24 @@ export default function ObjectForm({ object, objects = [], promotionMode, onSave
 
   const validate = () => {
     const errs = {}
+    // Universal — every object needs these
     if (!form.listName.trim()) errs.listName = 'Name is required'
-    if (!form.owner.trim()) errs.owner = 'Owner is required'
+    if (!form.description.trim()) errs.description = 'Description is required — what is this object and why does it exist?'
+    if (!form.productFamilies?.length) errs.productFamilies = 'At least one product family is required'
+    if (!form.owner.trim()) errs.owner = 'Owner is required — who is accountable for oversight?'
+    if (!form.operator?.trim()) errs.operator = 'Operator is required — who manages this day-to-day?'
     if (form.healthStatus === 'RED' && !form.healthRationale.trim()) {
       errs.healthRationale = 'Rationale is required when health is RED'
     }
     if (form.kpiDenominator > 0 && form.kpiNumerator > form.kpiDenominator) {
       errs.kpiNumerator = 'Numerator cannot exceed denominator'
     }
-    // Type-specific validation
+    // Control-specific
     if (form.type === 'Control') {
-      if (form.controlClassification === 'Formal' && form.nistFamilies.length === 0) {
-        errs.nistFamilies = 'At least one NIST family is required for Formal controls'
-      }
-      if (form.controlClassification === 'Formal' && !form.controlType) {
-        errs.controlType = 'Control function is required for Formal controls'
+      if (!form.controlObjective?.trim()) errs.controlObjective = 'Control objective is required — what risk does this mitigate?'
+      if (form.controlClassification === 'Formal') {
+        if (form.nistFamilies.length === 0) errs.nistFamilies = 'At least one NIST family is required for Formal controls'
+        if (!form.controlType) errs.controlType = 'Control function is required for Formal controls'
       }
     }
     if (form.type === 'Process' && !form.outcome?.trim()) {
@@ -335,23 +338,25 @@ export default function ObjectForm({ object, objects = [], promotionMode, onSave
             )}
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="field-description" className="text-[0.78rem] font-semibold text-txt-2 tracking-tight">Description</label>
-            <textarea id="field-description" value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} placeholder={cfg.descPlaceholder} className="w-full bg-white border border-border rounded-[10px] px-3 py-2.5 text-[0.88rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15 placeholder:text-txt-3 resize-y" />
+            <label htmlFor="field-description" className="text-[0.78rem] font-semibold text-txt-2 tracking-tight">Description *</label>
+            <textarea id="field-description" value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} placeholder={cfg.descPlaceholder} className={`w-full bg-white border rounded-[10px] px-3 py-2.5 text-[0.88rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15 placeholder:text-txt-3 resize-y ${errors.description ? 'border-red' : 'border-border'}`} />
+            {errors.description && <span className="text-[0.75rem] text-red font-medium">{errors.description}</span>}
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[0.78rem] font-semibold text-txt-2 tracking-tight">Product Families</label>
+            <label className="text-[0.78rem] font-semibold text-txt-2 tracking-tight">Product Families *</label>
             <div className="flex flex-wrap gap-1.5">
               {PRODUCT_FAMILIES.map((f) => (
                 <button
                   key={f}
                   type="button"
-                  className={`bg-white border rounded-full px-2.5 py-1 text-[0.78rem] font-medium cursor-pointer font-sans transition-all duration-150 hover:border-brand hover:text-brand ${form.productFamilies.includes(f) ? 'bg-brand-light border-brand text-brand font-semibold' : 'border-border text-txt-2'}`}
+                  className={`bg-white border rounded-full px-2.5 py-1 text-[0.78rem] font-medium cursor-pointer font-sans transition-all duration-150 hover:border-brand hover:text-brand ${form.productFamilies.includes(f) ? 'bg-brand-light border-brand text-brand font-semibold' : errors.productFamilies ? 'border-red/40 text-txt-2' : 'border-border text-txt-2'}`}
                   onClick={() => toggleMulti('productFamilies', f)}
                 >
                   {f}
                 </button>
               ))}
             </div>
+            {errors.productFamilies && <span className="text-[0.75rem] text-red font-medium">{errors.productFamilies}</span>}
           </div>
 
           {/* ── Ownership ── */}
@@ -368,8 +373,9 @@ export default function ObjectForm({ object, objects = [], promotionMode, onSave
               {errors.owner && <span className="text-[0.75rem] text-red font-medium">{errors.owner}</span>}
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[0.78rem] font-semibold text-txt-2 tracking-tight">Operator</label>
-              <input value={form.operator} onChange={(e) => set('operator', e.target.value)} placeholder={cfg.operatorPlaceholder} className="w-full bg-white border border-border rounded-[10px] px-3 py-2.5 text-[0.88rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15 placeholder:text-txt-3" />
+              <label className="text-[0.78rem] font-semibold text-txt-2 tracking-tight">Operator *</label>
+              <input value={form.operator} onChange={(e) => set('operator', e.target.value)} placeholder={cfg.operatorPlaceholder} className={`w-full bg-white border rounded-[10px] px-3 py-2.5 text-[0.88rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15 placeholder:text-txt-3 ${errors.operator ? 'border-red' : 'border-border'}`} />
+              {errors.operator && <span className="text-[0.75rem] text-red font-medium">{errors.operator}</span>}
             </div>
           </div>
 
@@ -414,9 +420,9 @@ export default function ObjectForm({ object, objects = [], promotionMode, onSave
 
               {/* Control Objective — all controls, not just Formal */}
               <div className="flex flex-col gap-1">
-                <label className="text-[0.78rem] font-semibold text-txt-2 tracking-tight">Control Objective</label>
-                <textarea value={form.controlObjective} onChange={(e) => set('controlObjective', e.target.value)} rows={2} placeholder="What specific risk or compliance gap does this control exist to address?" className="w-full bg-white border border-border rounded-[10px] px-3 py-2.5 text-[0.88rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15 placeholder:text-txt-3 resize-y" />
-                <span className="text-[0.72rem] text-txt-3 mt-0.5">The risk or outcome this control mitigates — distinct from what it does (description)</span>
+                <label className="text-[0.78rem] font-semibold text-txt-2 tracking-tight">Control Objective *</label>
+                <textarea value={form.controlObjective} onChange={(e) => set('controlObjective', e.target.value)} rows={2} placeholder="What specific risk or compliance gap does this control exist to address?" className={`w-full bg-white border rounded-[10px] px-3 py-2.5 text-[0.88rem] font-sans text-txt outline-none transition-all duration-150 focus:border-brand focus:ring-2 focus:ring-brand/15 placeholder:text-txt-3 resize-y ${errors.controlObjective ? 'border-red' : 'border-border'}`} />
+                {errors.controlObjective ? <span className="text-[0.75rem] text-red font-medium">{errors.controlObjective}</span> : <span className="text-[0.72rem] text-txt-3 mt-0.5">The risk or outcome this control mitigates — distinct from what it does (description)</span>}
               </div>
 
               {/* Control taxonomy — all controls */}
