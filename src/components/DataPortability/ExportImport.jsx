@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { useStore, useDispatch } from '../../store/useStore.jsx'
 import { exportToExcel, exportToJSON, importFromExcel, importFromJSON } from '../../utils/export.js'
 
@@ -30,9 +30,11 @@ export default function ExportImport() {
         const data = await importFromJSON(file)
         if (data.objects) {
           dispatch({ type: 'RESTORE_STATE', payload: data })
-          setMessage({ type: 'success', text: `Restored full state from JSON: ${data.objects.length} objects, ${data.gaps?.length || 0} pipeline items, ${data.standupItems?.length || 0} standup items.` })
+          const snapshotCount = (data.complianceSnapshots || []).length
+          const safeguardCount = Object.values(data.safeguardAssessments || {}).reduce((sum, fw) => sum + Object.keys(fw).length, 0)
+          setMessage({ type: 'success', text: `Restored full state from JSON: ${data.objects.length} objects, ${data.gaps?.length || 0} pipeline items, ${data.standupItems?.length || 0} standup items${safeguardCount ? `, ${safeguardCount} safeguard assessments` : ''}${snapshotCount ? `, ${snapshotCount} compliance snapshots` : ''}.` })
         } else {
-          setMessage({ type: 'error', text: 'Invalid JSON structure. Expected { objects, gaps, standupItems, mlgAssessments }.' })
+          setMessage({ type: 'error', text: 'Invalid JSON structure. Expected { objects, gaps, standupItems, mlgAssessments, safeguardAssessments }.' })
         }
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         const objects = await importFromExcel(file)
@@ -76,8 +78,8 @@ export default function ExportImport() {
       ),
       color: 'ai',
       title: 'Full JSON Backup',
-      desc: 'Export the complete platform state — objects, gaps, standup items, and MLG assessments — as a portable JSON file.',
-      meta: [`${state.objects.length} objects`, `${state.gaps.length} pipeline items`, `${state.standupItems.length} actions`],
+      desc: 'Export the complete platform state — objects, gaps, standup items, MLG assessments, and compliance assessments — as a portable JSON file.',
+      meta: [`${state.objects.length} objects`, `${state.gaps.length} pipeline items`, `${state.standupItems.length} actions`, `${(state.complianceSnapshots || []).length} snapshots`],
       btnText: 'Export .json',
       onClick: handleJSONExport,
     },
@@ -167,12 +169,14 @@ export default function ExportImport() {
       {/* Current State Summary */}
       <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-6 mt-4">
         <h3 className="text-[0.95rem] font-bold tracking-tight text-txt mb-4">Current State Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
           {[
             { value: state.objects.length, label: 'Objects' },
             { value: state.gaps.length, label: 'Pipeline Items' },
             { value: state.standupItems.length, label: 'Standup Items' },
             { value: Object.keys(state.mlgAssessments).length, label: 'MLG Assessments' },
+            { value: Object.values(state.safeguardAssessments || {}).reduce((sum, fw) => sum + Object.keys(fw).length, 0), label: 'Safeguard Assessments' },
+            { value: (state.complianceSnapshots || []).length, label: 'Compliance Snapshots' },
           ].map((s, i) => (
             <div key={i} className="text-center">
               <span className="block text-2xl font-[800] text-brand tracking-tight">{s.value}</span>
@@ -180,9 +184,22 @@ export default function ExportImport() {
             </div>
           ))}
         </div>
-        <p className="text-[0.78rem] text-txt-3 leading-relaxed">
-          Data is persisted in your browser's local storage. Use JSON export for cross-device portability.
-        </p>
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-border-light">
+          <p className="text-[0.78rem] text-txt-3 leading-relaxed">
+            Data is persisted in your browser's local storage. Use JSON export for cross-device portability.
+          </p>
+          <button
+            className="shrink-0 ml-4 bg-white text-red border border-red/20 rounded-[10px] px-4 py-2 text-[0.82rem] font-semibold cursor-pointer font-sans transition-all duration-150 hover:bg-red-bg hover:border-red/30"
+            onClick={() => {
+              if (window.confirm('This will clear all data and start fresh. Export a backup first if needed.')) {
+                dispatch({ type: 'RESET_STATE' })
+                setMessage({ type: 'success', text: 'All data has been cleared.' })
+              }
+            }}
+          >
+            Reset All Data
+          </button>
+        </div>
       </div>
     </div>
   )

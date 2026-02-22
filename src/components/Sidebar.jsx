@@ -1,5 +1,6 @@
 import React from 'react'
 import { useStore } from '../store/useStore.jsx'
+import { AiProviderToggle } from './AiPanel.jsx'
 
 const NAV_ITEMS = [
   {
@@ -90,8 +91,8 @@ const NAV_ITEMS = [
 const FRAMEWORK_ITEMS = [
   {
     id: 'cis-v8',
-    label: 'CIS v8',
-    subtitle: '18 Controls',
+    label: 'CIS v8.1',
+    subtitle: '153 Safeguards',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -101,12 +102,34 @@ const FRAMEWORK_ITEMS = [
   },
   {
     id: 'nist-csf',
-    label: 'NIST CSF',
+    label: 'NIST CSF 2.0',
     subtitle: '6 Functions',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10"/>
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'glba',
+    label: 'GLBA',
+    subtitle: '47 Safeguards',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path d="M8 11h8M8 15h5"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'nydfs',
+    label: 'NYDFS 500',
+    subtitle: '43 Safeguards',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <path d="M12 8v8M8 12h8"/>
       </svg>
     ),
   },
@@ -233,7 +256,8 @@ export default function Sidebar({ activePage, onNavigate, mobileOpen }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-white/[0.06]">
+      <div className="px-5 py-4 border-t border-white/[0.06] flex flex-col gap-2">
+        <AiProviderToggle />
         <div className="text-[0.68rem] text-white/45">
           <span className="block">Security Product Mgmt</span>
           <span className="block mt-0.5 text-white/30">v0.1 MVP</span>

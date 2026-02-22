@@ -4,11 +4,14 @@ import { HEALTH_STATUSES, NIST_FAMILIES, MLG_PHASES, computeMLGScore, ATTESTATIO
 import { isStale, formatDate, daysSince } from '../../utils/compliance.js'
 import { assessRisk, detectRegulatory, assessKpiCoherence, assessControlCoherence } from '../../utils/ai.js'
 import { AiButton, AiSlidePanel, AiError } from '../AiPanel.jsx'
+import { mapObjectToCIS, mapObjectToCSF, mapObjectToGLBA, mapObjectToNYDFS } from '../../data/frameworks.js'
+import { computeSafeguardScore } from '../../utils/safeguardScoring.js'
+import { CIS_SAFEGUARDS, NIST_CSF_SAFEGUARDS, GLBA_SAFEGUARDS, NYDFS_SAFEGUARDS } from '../../data/safeguards.js'
 import ObjectForm from './ObjectForm.jsx'
 import ConfirmDialog from '../ConfirmDialog.jsx'
 
 export default function ObjectDetail({ objectId, onNavigate }) {
-  const { objects, mlgAssessments, attestations, regulatoryQueue } = useStore()
+  const { objects, mlgAssessments, attestations, regulatoryQueue, safeguardAssessments } = useStore()
   const dispatch = useDispatch()
   const [editing, setEditing] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
@@ -27,6 +30,8 @@ export default function ObjectDetail({ objectId, onNavigate }) {
   const closeConfirmDialog = useCallback(() => setConfirmDialog({ open: false }), [])
   const [showRemForm, setShowRemForm] = useState(false)
   const [remediationForm, setRemediationForm] = useState({ title: '', severity: 'AMBER' })
+
+  const safeguardData = { CIS_SAFEGUARDS, NIST_CSF_SAFEGUARDS, GLBA_SAFEGUARDS, NYDFS_SAFEGUARDS }
 
   const handleRiskAssess = async () => {
     const obj = objects.find((o) => o.id === objectId)
@@ -679,6 +684,66 @@ export default function ObjectDetail({ objectId, onNavigate }) {
               )
             })()}
           </div>
+
+          {/* Framework Coverage */}
+          {(() => {
+            if (!obj || !safeguardData) return null
+            const cisGroups = mapObjectToCIS(obj)
+            const csfCategories = mapObjectToCSF(obj)
+            const glbaDomains = mapObjectToGLBA(obj)
+            const nydfsDomains = mapObjectToNYDFS(obj)
+            const sa = safeguardAssessments || {}
+            const frameworks = [
+              { key: 'cis-v8', label: 'CIS v8', color: '#2563eb', groups: cisGroups, safeguards: safeguardData.CIS_SAFEGUARDS || [], groupKey: 'groupId' },
+              { key: 'nist-csf', label: 'NIST CSF', color: '#7c3aed', groups: csfCategories, safeguards: safeguardData.NIST_CSF_SAFEGUARDS || [], groupKey: 'categoryId' },
+              { key: 'glba', label: 'GLBA', color: '#0891b2', groups: glbaDomains, safeguards: safeguardData.GLBA_SAFEGUARDS || [], groupKey: 'domainId' },
+              { key: 'nydfs', label: 'NYDFS', color: '#c026d3', groups: nydfsDomains, safeguards: safeguardData.NYDFS_SAFEGUARDS || [], groupKey: 'domainId' },
+            ]
+            const hasAny = frameworks.some(f => f.groups.length > 0)
+            if (!hasAny) return null
+            return (
+              <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+                <h3 className="text-[0.95rem] font-bold tracking-tight text-txt mb-4">Framework Coverage</h3>
+                <div className="flex flex-col gap-3">
+                  {frameworks.map(fw => {
+                    if (fw.groups.length === 0) return null
+                    const fwAssessments = sa[fw.key] || {}
+                    const mapped = fw.safeguards.filter(sg => fw.groups.includes(sg[fw.groupKey]))
+                    const assessed = mapped.filter(sg => fwAssessments[sg.id])
+                    const passing = assessed.filter(sg => {
+                      const a = fwAssessments[sg.id]
+                      if (!a) return false
+                      const score = computeSafeguardScore(a.policy, a.implementation)
+                      return score !== null && score >= 0.6
+                    })
+                    return (
+                      <div key={fw.key} className="flex items-center gap-3">
+                        <span className="text-[0.72rem] font-bold px-2 py-0.5 rounded-full w-[72px] text-center shrink-0" style={{ backgroundColor: fw.color + '15', color: fw.color }}>{fw.label}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="flex-1 h-[5px] bg-subtle rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: mapped.length > 0 ? `${(passing.length / mapped.length) * 100}%` : '0%', backgroundColor: fw.color }} />
+                            </div>
+                            <span className="text-[0.72rem] font-semibold text-txt-2 whitespace-nowrap">{passing.length}/{mapped.length} passing</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {mapped.slice(0, 8).map(sg => {
+                              const a = fwAssessments[sg.id]
+                              const score = a ? computeSafeguardScore(a.policy, a.implementation) : null
+                              const dotColor = score === null ? '#cbd5e1' : score >= 0.6 ? '#16a34a' : score >= 0.3 ? '#d97706' : '#dc2626'
+                              return <span key={sg.id} className="w-[6px] h-[6px] rounded-full inline-block" style={{ backgroundColor: dotColor }} title={`${sg.id}: ${sg.name}${score !== null ? ` (${Math.round(score * 100)}%)` : ' (not assessed)'}`} />
+                            })}
+                            {mapped.length > 8 && <span className="text-[0.6rem] text-txt-3 font-medium">+{mapped.length - 8}</span>}
+                          </div>
+                        </div>
+                        <button className="bg-transparent border-none text-brand cursor-pointer font-sans text-[0.72rem] font-semibold hover:text-brand-deep transition-colors p-0 shrink-0" onClick={() => onNavigate(fw.key)}>View</button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
         </div>
       </div>
 

@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from 'react'
-import { useStore } from '../store/useStore.jsx'
+import { useStore, useDispatch } from '../store/useStore.jsx'
 import { isStale, formatDate } from '../utils/compliance.js'
 import { HEALTH_STATUSES, PRODUCT_FAMILIES, computeMLGScore } from '../data/constants.js'
 import { getInsights } from '../utils/ai.js'
 import { AiButton, AiSlidePanel, AiError } from './AiPanel.jsx'
+import { computeFrameworkAssessment } from '../utils/safeguardScoring.js'
+import { CIS_CONTROLS, NIST_CSF_FUNCTIONS, getMaturityLevel } from '../data/frameworks.js'
+import { CIS_SAFEGUARDS, NIST_CSF_SAFEGUARDS, GLBA_DOMAINS, GLBA_SAFEGUARDS, NYDFS_DOMAINS, NYDFS_SAFEGUARDS } from '../data/safeguards.js'
 
 // ── Posture River (Stacked Area) ──
 function PostureRiver({ data }) {
@@ -265,9 +268,58 @@ function ReviewHeatmap({ data }) {
   )
 }
 
+// ── Compliance Trend (Multi-line) ──
+function ComplianceTrendChart({ snapshots, frameworkColors }) {
+  const W = 440, H = 160, PAD = 32
+  const chartW = W - PAD * 2, chartH = H - PAD - 16
+  if (!snapshots || snapshots.length < 2) return null
+
+  const x = (i) => PAD + (i / (snapshots.length - 1)) * chartW
+  const y = (v) => 12 + chartH * (1 - v)
+  const frameworks = Object.keys(frameworkColors)
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" className="w-full h-auto block">
+        {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+          <line key={v} x1={PAD} y1={y(v)} x2={W - PAD} y2={y(v)} stroke="#f1f5f9" strokeWidth="1" />
+        ))}
+        {frameworks.map((fw) => {
+          const pts = snapshots.map((s, i) => `${x(i)},${y(s.scores[fw] || 0)}`).join(' ')
+          return <polyline key={fw} points={pts} fill="none" stroke={frameworkColors[fw]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        })}
+        {frameworks.map((fw) => {
+          const last = snapshots[snapshots.length - 1]
+          return <circle key={fw + 'd'} cx={x(snapshots.length - 1)} cy={y(last.scores[fw] || 0)} r="3" fill={frameworkColors[fw]} />
+        })}
+        {snapshots.map((s, i) => {
+          if (snapshots.length <= 6 || i % Math.ceil(snapshots.length / 6) === 0 || i === snapshots.length - 1) {
+            const d = new Date(s.timestamp)
+            const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            return <text key={i} x={x(i)} y={H - 2} textAnchor="middle" fontSize="8" fill="#9ca3af" fontFamily="Inter,sans-serif">{label}</text>
+          }
+          return null
+        })}
+        <text x={PAD - 4} y={y(1) + 3} textAnchor="end" fontSize="7.5" fill="#9ca3af" fontFamily="Inter,sans-serif">100%</text>
+        <text x={PAD - 4} y={y(0.5) + 3} textAnchor="end" fontSize="7.5" fill="#9ca3af" fontFamily="Inter,sans-serif">50%</text>
+        <text x={PAD - 4} y={y(0) + 3} textAnchor="end" fontSize="7.5" fill="#9ca3af" fontFamily="Inter,sans-serif">0%</text>
+      </svg>
+      <div className="flex items-center gap-4 mt-2 px-1 flex-wrap">
+        {frameworks.map((fw) => (
+          <span key={fw} className="flex items-center gap-1.5 text-[0.72rem] text-txt-3 font-medium">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: frameworkColors[fw] }} />
+            {fw === 'cis-v8' ? 'CIS' : fw === 'nist-csf' ? 'CSF' : fw === 'glba' ? 'GLBA' : 'NYDFS'}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard({ onNavigate }) {
   const state = useStore()
-  const { objects, gaps, standupItems, mlgAssessments } = state
+  const { objects, gaps, standupItems, mlgAssessments, safeguardAssessments, complianceSnapshots, cisIgFilter } = state
+  const dispatch = useDispatch()
   const [aiOpen, setAiOpen] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiContent, setAiContent] = useState(null)
@@ -466,6 +518,32 @@ export default function Dashboard({ onNavigate }) {
       })
       .sort((a, b) => b.redCount - a.redCount || b.amberCount - a.amberCount || b.remCount - a.remCount)
   }, [objects, mlgAssessments])
+
+  // ── Framework Compliance Scores ──
+  const frameworkScores = useMemo(() => {
+    const cisGroups = CIS_CONTROLS.map(c => ({ id: c.id, safeguards: CIS_SAFEGUARDS.filter(s => s.groupId === c.id) }))
+    const csfCategories = NIST_CSF_FUNCTIONS.flatMap(f => f.categories.map(c => ({ id: c.id, safeguards: NIST_CSF_SAFEGUARDS.filter(s => s.categoryId === c.id) })))
+    const glbaGroups = GLBA_DOMAINS.map(d => ({ id: d.id, safeguards: GLBA_SAFEGUARDS.filter(s => s.domainId === d.id) }))
+    const nydfsGroups = NYDFS_DOMAINS.map(d => ({ id: d.id, safeguards: NYDFS_SAFEGUARDS.filter(s => s.domainId === d.id) }))
+
+    const cis = computeFrameworkAssessment(cisGroups, safeguardAssessments['cis-v8'] || {}, cisIgFilter)
+    const csf = computeFrameworkAssessment(csfCategories, safeguardAssessments['nist-csf'] || {})
+    const glba = computeFrameworkAssessment(glbaGroups, safeguardAssessments['glba'] || {})
+    const nydfs = computeFrameworkAssessment(nydfsGroups, safeguardAssessments['nydfs'] || {})
+
+    return [
+      { key: 'cis-v8', name: 'CIS v8.1', color: '#2563eb', page: 'cis', ...cis.overall },
+      { key: 'nist-csf', name: 'NIST CSF 2.0', color: '#8b5cf6', page: 'nist-csf', ...csf.overall },
+      { key: 'glba', name: 'GLBA', color: '#ea580c', page: 'glba', ...glba.overall },
+      { key: 'nydfs', name: 'NYDFS 500', color: '#dc2626', page: 'nydfs', ...nydfs.overall },
+    ]
+  }, [safeguardAssessments, cisIgFilter])
+
+  const handleSaveSnapshot = () => {
+    const scores = {}
+    frameworkScores.forEach(f => { scores[f.key] = Math.round(f.score * 1000) / 1000 })
+    dispatch({ type: 'SAVE_COMPLIANCE_SNAPSHOT', payload: { scores } })
+  }
 
   return (
     <div>
@@ -817,6 +895,88 @@ export default function Dashboard({ onNavigate }) {
               <ReviewHeatmap data={heatmapData} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ═══ Compliance Posture ═══ */}
+      {(frameworkScores.some(f => f.assessed > 0) || complianceSnapshots.length > 0) && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[1.25rem] font-[800] tracking-tight text-txt">Compliance Posture</h2>
+            <button
+              className="text-[0.78rem] font-semibold text-brand hover:text-brand-deep transition-colors cursor-pointer bg-transparent border-none font-sans p-0"
+              onClick={handleSaveSnapshot}
+            >
+              Save Snapshot
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            {frameworkScores.map(fw => {
+              const pct = Math.round(fw.score * 100)
+              const ml = getMaturityLevel(fw.maturity)
+              const lastSnapshot = complianceSnapshots.length > 0 ? complianceSnapshots[complianceSnapshots.length - 1] : null
+              const prevScore = lastSnapshot?.scores?.[fw.key]
+              const trend = prevScore !== undefined ? (fw.score > prevScore + 0.01 ? 'up' : fw.score < prevScore - 0.01 ? 'down' : 'stable') : null
+
+              return (
+                <div
+                  key={fw.key}
+                  className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-4 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                  onClick={() => onNavigate(fw.page)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onNavigate(fw.page) } }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-[56px] h-[56px] relative shrink-0">
+                      <svg viewBox="0 0 100 100" className="w-full h-full">
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" strokeWidth="10" />
+                        <circle
+                          cx="50" cy="50" r="40"
+                          fill="none"
+                          stroke={fw.color}
+                          strokeWidth="10"
+                          strokeDasharray={`${pct * 2.51} ${251 - pct * 2.51}`}
+                          strokeDashoffset="0"
+                          transform="rotate(-90 50 50)"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[0.82rem] font-[800] text-txt">{pct}%</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[0.82rem] font-bold text-txt truncate">{fw.name}</span>
+                      <span className="text-[0.68rem] text-txt-3">{fw.assessed}/{fw.total} assessed</span>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[0.62rem] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: ml.bg, color: ml.color }}>L{fw.maturity}</span>
+                        {trend && (
+                          <span className={`text-[0.68rem] font-bold ${trend === 'up' ? 'text-green' : trend === 'down' ? 'text-red' : 'text-txt-3'}`}>
+                            {trend === 'up' ? '\u2191' : trend === 'down' ? '\u2193' : '\u2022'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {complianceSnapshots.length >= 2 && (
+            <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[0.95rem] font-bold tracking-tight text-txt">Compliance Trending</h3>
+                <span className="text-[0.72rem] font-medium text-txt-3 bg-subtle px-2 py-0.5 rounded-full">{complianceSnapshots.length} snapshots</span>
+              </div>
+              <ComplianceTrendChart
+                snapshots={complianceSnapshots}
+                frameworkColors={{ 'cis-v8': '#2563eb', 'nist-csf': '#8b5cf6', 'glba': '#ea580c', 'nydfs': '#dc2626' }}
+              />
+            </div>
+          )}
         </div>
       )}
 

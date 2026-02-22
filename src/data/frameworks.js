@@ -181,6 +181,76 @@ const NIST80053_TO_CSF = {
   'SR': ['GV.SC'],
 }
 
+// Product Family → GLBA Domains
+const FAMILY_TO_GLBA = {
+  'AI Security':                   ['GLBA-GOV', 'GLBA-RA', 'GLBA-IS'],
+  'Data Protection':               ['GLBA-AC', 'GLBA-IS', 'GLBA-ID'],
+  'Insider Risk':                  ['GLBA-AC', 'GLBA-MT', 'GLBA-PT'],
+  'Identity & Access Management':  ['GLBA-AC', 'GLBA-PT'],
+  'Software Security Services':    ['GLBA-IS', 'GLBA-MT'],
+  'Vulnerability Management':      ['GLBA-MT', 'GLBA-RA'],
+  'BISO':                          ['GLBA-GOV', 'GLBA-SP', 'GLBA-IR'],
+}
+
+// Product Family → NYDFS Domains
+const FAMILY_TO_NYDFS = {
+  'AI Security':                   ['NYDFS-CP', 'NYDFS-RA', 'NYDFS-AS'],
+  'Data Protection':               ['NYDFS-EN', 'NYDFS-DR', 'NYDFS-PO'],
+  'Insider Risk':                  ['NYDFS-AP', 'NYDFS-MO', 'NYDFS-TA'],
+  'Identity & Access Management':  ['NYDFS-AP', 'NYDFS-MF'],
+  'Software Security Services':    ['NYDFS-AS', 'NYDFS-PT'],
+  'Vulnerability Management':      ['NYDFS-PT', 'NYDFS-MO'],
+  'BISO':                          ['NYDFS-GV', 'NYDFS-CI', 'NYDFS-TP'],
+}
+
+// NIST 800-53 → GLBA Domain crosswalk
+const NIST80053_TO_GLBA = {
+  'AC': ['GLBA-AC'],
+  'AT': ['GLBA-PT'],
+  'AU': ['GLBA-MT'],
+  'CA': ['GLBA-RA', 'GLBA-MT'],
+  'CM': ['GLBA-IS'],
+  'CP': ['GLBA-IR'],
+  'IA': ['GLBA-AC'],
+  'IR': ['GLBA-IR'],
+  'MA': ['GLBA-IS'],
+  'MP': ['GLBA-ID'],
+  'PE': [],
+  'PL': ['GLBA-GOV'],
+  'PM': ['GLBA-GOV'],
+  'PS': ['GLBA-PT'],
+  'PT': ['GLBA-AC'],
+  'RA': ['GLBA-RA'],
+  'SA': ['GLBA-SP'],
+  'SC': ['GLBA-IS'],
+  'SI': ['GLBA-MT', 'GLBA-IS'],
+  'SR': ['GLBA-SP'],
+}
+
+// NIST 800-53 → NYDFS Domain crosswalk
+const NIST80053_TO_NYDFS = {
+  'AC': ['NYDFS-AP'],
+  'AT': ['NYDFS-TA'],
+  'AU': ['NYDFS-AT'],
+  'CA': ['NYDFS-RA', 'NYDFS-PT'],
+  'CM': ['NYDFS-AS'],
+  'CP': ['NYDFS-IR'],
+  'IA': ['NYDFS-MF', 'NYDFS-AP'],
+  'IR': ['NYDFS-IR'],
+  'MA': ['NYDFS-AS'],
+  'MP': ['NYDFS-DR'],
+  'PE': [],
+  'PL': ['NYDFS-PO'],
+  'PM': ['NYDFS-GV', 'NYDFS-CP'],
+  'PS': ['NYDFS-TA'],
+  'PT': ['NYDFS-AP'],
+  'RA': ['NYDFS-RA'],
+  'SA': ['NYDFS-TP'],
+  'SC': ['NYDFS-EN'],
+  'SI': ['NYDFS-MO'],
+  'SR': ['NYDFS-TP'],
+}
+
 // ══════════════════════════════════
 // Auto-Mapping Engine
 // ══════════════════════════════════
@@ -350,4 +420,121 @@ export function computeCSFAssessment(objects, mlgAssessments = {}, overrides = {
     : 0
 
   return { functions, overallScore, overallLevel: getMaturityLevel(Math.round(overallScore)) }
+}
+
+// ══════════════════════════════════
+// GLBA / NYDFS Mapping Engine
+// ══════════════════════════════════
+
+/**
+ * Maps a single object to GLBA domain IDs
+ */
+export function mapObjectToGLBA(obj) {
+  const domainSet = new Set()
+  for (const family of obj.productFamilies || []) {
+    for (const did of FAMILY_TO_GLBA[family] || []) domainSet.add(did)
+  }
+  for (const nistId of obj.nistFamilies || []) {
+    for (const did of NIST80053_TO_GLBA[nistId] || []) domainSet.add(did)
+  }
+  return [...domainSet].sort()
+}
+
+/**
+ * Maps a single object to NYDFS domain IDs
+ */
+export function mapObjectToNYDFS(obj) {
+  const domainSet = new Set()
+  for (const family of obj.productFamilies || []) {
+    for (const did of FAMILY_TO_NYDFS[family] || []) domainSet.add(did)
+  }
+  for (const nistId of obj.nistFamilies || []) {
+    for (const did of NIST80053_TO_NYDFS[nistId] || []) domainSet.add(did)
+  }
+  return [...domainSet].sort()
+}
+
+/**
+ * Builds GLBA domain mapping: { [domainId]: [objectArray] }
+ * Requires GLBA_DOMAINS to be passed in (from safeguards.js) to avoid circular dependency
+ */
+export function buildGLBAMapping(objects, glbaDomains) {
+  const mapping = {}
+  for (const d of glbaDomains) mapping[d.id] = []
+  for (const obj of objects) {
+    const dids = mapObjectToGLBA(obj)
+    for (const did of dids) {
+      if (mapping[did]) mapping[did].push(obj)
+    }
+  }
+  return mapping
+}
+
+/**
+ * Builds NYDFS domain mapping: { [domainId]: [objectArray] }
+ */
+export function buildNYDFSMapping(objects, nydfsDomains) {
+  const mapping = {}
+  for (const d of nydfsDomains) mapping[d.id] = []
+  for (const obj of objects) {
+    const dids = mapObjectToNYDFS(obj)
+    for (const did of dids) {
+      if (mapping[did]) mapping[did].push(obj)
+    }
+  }
+  return mapping
+}
+
+/**
+ * Computes GLBA assessment: maturity per domain + overall
+ */
+export function computeGLBAAssessment(objects, mlgAssessments = {}, overrides = {}, glbaDomains = []) {
+  const mapping = buildGLBAMapping(objects, glbaDomains)
+  const domains = glbaDomains.map((domain) => {
+    const mapped = mapping[domain.id] || []
+    const autoMaturity = deriveMaturity(mapped, mlgAssessments)
+    const override = overrides[domain.id]
+    const effectiveMaturity = override?.level != null ? override.level : autoMaturity
+    return {
+      ...domain,
+      objects: mapped,
+      autoMaturity,
+      override: override || null,
+      maturity: effectiveMaturity,
+      maturityInfo: getMaturityLevel(effectiveMaturity),
+    }
+  })
+
+  const overallScore = domains.length > 0
+    ? Math.round(domains.reduce((s, d) => s + d.maturity, 0) / domains.length * 10) / 10
+    : 0
+
+  return { domains, overallScore, overallLevel: getMaturityLevel(Math.round(overallScore)) }
+}
+
+/**
+ * Computes NYDFS assessment: maturity per domain + overall
+ */
+export function computeNYDFSAssessment(objects, mlgAssessments = {}, overrides = {}, nydfsDomains = []) {
+  const mapping = buildNYDFSMapping(objects, nydfsDomains)
+  const domains = nydfsDomains.map((domain) => {
+    const mapped = mapping[domain.id] || []
+    const autoMaturity = deriveMaturity(mapped, mlgAssessments)
+    const override = overrides[domain.id]
+    const effectiveMaturity = override?.level != null ? override.level : autoMaturity
+    return {
+      ...domain,
+      objects: mapped,
+      autoMaturity,
+      override: override || null,
+      maturity: effectiveMaturity,
+      maturityInfo: getMaturityLevel(effectiveMaturity),
+    }
+  })
+
+  const overallScore = domains.length > 0
+    ? Math.round(domains.reduce((s, d) => s + d.maturity, 0) / domains.length * 10) / 10
+    : 0
+
+  return { domains, overallScore, overallLevel: getMaturityLevel(Math.round(overallScore)) }
 }

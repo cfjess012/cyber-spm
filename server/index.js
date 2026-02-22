@@ -13,52 +13,22 @@ import {
   SYSTEM_REGULATORY_DETECT,
   SYSTEM_KPI_COHERENCE,
   SYSTEM_CONTROL_COHERENCE,
+  SYSTEM_SAFEGUARD_ASSESS,
+  SYSTEM_TRIAGE_AUGMENT,
 } from './prompts.js'
+import { chat, checkOllamaHealth, checkClaudeHealth } from './providers.js'
 
 const app = express()
 const PORT = 8000
 const HOST = '127.0.0.1' // localhost only — not exposed to network
-const OLLAMA_URL = 'http://localhost:11434/api/chat'
-const MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
 
 // ── Middleware ──
 app.use(express.json({ limit: '1mb' }))
 
-// ── Ollama chat helper ──
-async function chat(systemPrompt, userContent) {
-  const body = {
-    model: MODEL,
-    stream: false,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: typeof userContent === 'string' ? userContent : JSON.stringify(userContent, null, 2) },
-    ],
-    options: {
-      temperature: 0.4,
-      num_predict: 2048,
-    },
-  }
-
-  let res
-  try {
-    res = await fetch(OLLAMA_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-  } catch (err) {
-    throw new Error(
-      'Cannot connect to Ollama. Make sure it is running: ollama serve'
-    )
-  }
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Ollama error (${res.status}): ${text}`)
-  }
-
-  const data = await res.json()
-  return data.message?.content || ''
+// ── Provider extraction ──
+function extractProvider(req) {
+  const header = req.headers['x-ai-provider']
+  return header === 'claude' ? 'claude' : 'ollama'
 }
 
 // ── Helper: trim object data to reduce token usage ──
@@ -146,7 +116,7 @@ app.post('/api/ai/insights', async (req, res) => {
       objects: objects.map(trimObject),
       gaps: gaps.map(trimGap),
     }
-    const content = await chat(SYSTEM_INSIGHTS, summary)
+    const content = await chat(extractProvider(req), SYSTEM_INSIGHTS, summary)
     res.json({ content })
   } catch (err) {
     res.status(500).json({ detail: err.message })
@@ -158,7 +128,7 @@ app.post('/api/ai/autofill', async (req, res) => {
   try {
     const { description } = req.body
     if (!description) return res.status(400).json({ detail: 'Description is required' })
-    const raw = await chat(SYSTEM_AUTOFILL, description)
+    const raw = await chat(extractProvider(req), SYSTEM_AUTOFILL, description)
     // Extract JSON from response (model might wrap in code fences)
     let json = raw
     const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -175,10 +145,31 @@ app.post('/api/ai/autofill', async (req, res) => {
   }
 })
 
+// 2b. Triage augment — suggest classification fields for a pipeline item
+app.post('/api/ai/triage-augment', async (req, res) => {
+  try {
+    const { title, description } = req.body
+    if (!title) return res.status(400).json({ detail: 'Title is required' })
+    const input = `Title: ${title}${description ? `\nDescription: ${description}` : ''}`
+    const raw = await chat(extractProvider(req), SYSTEM_TRIAGE_AUGMENT, input)
+    let json = raw
+    const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (fenceMatch) json = fenceMatch[1]
+    const objMatch = json.match(/\{[\s\S]*\}/)
+    if (!objMatch) {
+      return res.status(500).json({ detail: 'Failed to parse AI response as JSON' })
+    }
+    const data = JSON.parse(objMatch[0])
+    res.json({ data })
+  } catch (err) {
+    res.status(500).json({ detail: err.message })
+  }
+})
+
 // 3. Risk assessment for a single object
 app.post('/api/ai/risk-assess', async (req, res) => {
   try {
-    const content = await chat(SYSTEM_RISK_ASSESS, trimObject(req.body))
+    const content = await chat(extractProvider(req), SYSTEM_RISK_ASSESS, trimObject(req.body))
     res.json({ content })
   } catch (err) {
     res.status(500).json({ detail: err.message })
@@ -195,7 +186,7 @@ app.post('/api/ai/remediation', async (req, res) => {
       gap: gap ? trimGap(gap) : null,
       linkedObjects: objArray.map(trimObject),
     }
-    const content = await chat(SYSTEM_REMEDIATION, payload)
+    const content = await chat(extractProvider(req), SYSTEM_REMEDIATION, payload)
     res.json({ content })
   } catch (err) {
     res.status(500).json({ detail: err.message })
@@ -209,7 +200,7 @@ app.post('/api/ai/prioritize-gaps', async (req, res) => {
     const trimmed = gaps
       .filter(g => g.status !== 'Closed')
       .map(trimGap)
-    const content = await chat(SYSTEM_PRIORITIZE, trimmed)
+    const content = await chat(extractProvider(req), SYSTEM_PRIORITIZE, trimmed)
     res.json({ content })
   } catch (err) {
     res.status(500).json({ detail: err.message })
@@ -224,7 +215,7 @@ app.post('/api/ai/mlg-assess', async (req, res) => {
       object: object ? trimObject(object) : null,
       mlgCheckpoints: currentAnswers,
     }
-    const content = await chat(SYSTEM_MLG, payload)
+    const content = await chat(extractProvider(req), SYSTEM_MLG, payload)
     res.json({ content })
   } catch (err) {
     res.status(500).json({ detail: err.message })
@@ -236,7 +227,7 @@ app.post('/api/ai/standup-actions', async (req, res) => {
   try {
     const { notes, existingItems } = req.body
     if (!notes) return res.status(400).json({ detail: 'Notes are required' })
-    const raw = await chat(SYSTEM_STANDUP_ACTIONS, `Meeting Notes:\n${notes}\n\nExisting Action Items:\n${JSON.stringify(existingItems || [], null, 2)}`)
+    const raw = await chat(extractProvider(req), SYSTEM_STANDUP_ACTIONS, `Meeting Notes:\n${notes}\n\nExisting Action Items:\n${JSON.stringify(existingItems || [], null, 2)}`)
     // Extract JSON array
     let json = raw
     const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -256,7 +247,7 @@ app.post('/api/ai/standup-actions', async (req, res) => {
 app.post('/api/ai/standup-summary', async (req, res) => {
   try {
     const { items } = req.body
-    const content = await chat(SYSTEM_STANDUP_SUMMARY, items || [])
+    const content = await chat(extractProvider(req), SYSTEM_STANDUP_SUMMARY, items || [])
     res.json({ content })
   } catch (err) {
     res.status(500).json({ detail: err.message })
@@ -266,7 +257,7 @@ app.post('/api/ai/standup-summary', async (req, res) => {
 // 9. Framework enterprise-level control assessment (returns JSON per control)
 app.post('/api/ai/framework-controls', async (req, res) => {
   try {
-    const raw = await chat(SYSTEM_FRAMEWORK_CONTROLS, req.body)
+    const raw = await chat(extractProvider(req), SYSTEM_FRAMEWORK_CONTROLS, req.body)
     // Extract JSON array from response
     let json = raw
     const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -285,7 +276,7 @@ app.post('/api/ai/framework-controls', async (req, res) => {
 // 10. Framework maturity report (returns markdown)
 app.post('/api/ai/framework-assess', async (req, res) => {
   try {
-    const content = await chat(SYSTEM_FRAMEWORK_ASSESS, req.body)
+    const content = await chat(extractProvider(req), SYSTEM_FRAMEWORK_ASSESS, req.body)
     res.json({ content })
   } catch (err) {
     res.status(500).json({ detail: err.message })
@@ -295,7 +286,7 @@ app.post('/api/ai/framework-assess', async (req, res) => {
 // 11. Regulatory attestation detection
 app.post('/api/ai/regulatory-detect', async (req, res) => {
   try {
-    const raw = await chat(SYSTEM_REGULATORY_DETECT, req.body)
+    const raw = await chat(extractProvider(req), SYSTEM_REGULATORY_DETECT, req.body)
     // Extract JSON array from response
     let json = raw
     const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -314,7 +305,7 @@ app.post('/api/ai/regulatory-detect', async (req, res) => {
 // 12. KPI coherence assessment
 app.post('/api/ai/kpi-coherence', async (req, res) => {
   try {
-    const raw = await chat(SYSTEM_KPI_COHERENCE, trimObject(req.body))
+    const raw = await chat(extractProvider(req), SYSTEM_KPI_COHERENCE, trimObject(req.body))
     // Extract JSON object from response
     let json = raw
     const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -333,7 +324,7 @@ app.post('/api/ai/kpi-coherence', async (req, res) => {
 // 13. Control description coherence assessment
 app.post('/api/ai/control-coherence', async (req, res) => {
   try {
-    const raw = await chat(SYSTEM_CONTROL_COHERENCE, trimObject(req.body))
+    const raw = await chat(extractProvider(req), SYSTEM_CONTROL_COHERENCE, trimObject(req.body))
     let json = raw
     const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
     if (fenceMatch) json = fenceMatch[1]
@@ -348,29 +339,61 @@ app.post('/api/ai/control-coherence', async (req, res) => {
   }
 })
 
+// 14. Safeguard-level assessment
+app.post('/api/ai/safeguard-assess', async (req, res) => {
+  try {
+    const { framework, safeguards = [], objectContext = [] } = req.body
+    // Batch safeguards in groups of 10 to stay within context window
+    const batchSize = 10
+    const allAssessments = []
+    for (let i = 0; i < safeguards.length; i += batchSize) {
+      const batch = safeguards.slice(i, i + batchSize)
+      const payload = {
+        framework,
+        safeguards: batch,
+        objectContext,
+      }
+      const raw = await chat(extractProvider(req), SYSTEM_SAFEGUARD_ASSESS, payload)
+      let json = raw
+      const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (fenceMatch) json = fenceMatch[1]
+      const arrMatch = json.match(/\[[\s\S]*\]/)
+      if (arrMatch) {
+        try {
+          const parsed = JSON.parse(arrMatch[0])
+          allAssessments.push(...parsed)
+        } catch { /* skip malformed batch */ }
+      }
+    }
+    res.json({ assessments: allAssessments })
+  } catch (err) {
+    res.status(500).json({ detail: err.message })
+  }
+})
+
 // ── Health check ──
 app.get('/api/health', async (_req, res) => {
-  try {
-    const ollamaRes = await fetch('http://localhost:11434/api/tags')
-    if (!ollamaRes.ok) throw new Error('Ollama not responding')
-    const data = await ollamaRes.json()
-    const models = (data.models || []).map(m => m.name)
-    res.json({ status: 'ok', model: MODEL, availableModels: models })
-  } catch {
-    res.status(503).json({ status: 'error', detail: 'Ollama is not running. Start it with: ollama serve' })
-  }
+  const ollama = await checkOllamaHealth()
+  const claude = checkClaudeHealth()
+  const status = ollama.available || claude.available ? 'ok' : 'error'
+  res.status(status === 'ok' ? 200 : 503).json({
+    status,
+    providers: { ollama, claude },
+  })
 })
 
 // ── Start server ──
 app.listen(PORT, HOST, () => {
+  const claude = checkClaudeHealth()
   console.log(`CPM AI server listening on http://${HOST}:${PORT}`)
-  console.log(`Using Ollama model: ${MODEL}`)
-  console.log(`Ollama endpoint: ${OLLAMA_URL}`)
+  console.log(`Providers:`)
+  console.log(`  Ollama  — local LLM (ensure running: ollama serve)`)
+  console.log(`  Claude  — ${claude.available ? `enabled (${claude.model})` : 'disabled (set ANTHROPIC_API_KEY to enable)'}`)
   console.log('')
-  console.log('Ensure Ollama is running: ollama serve')
   console.log('Available routes:')
   console.log('  POST /api/ai/insights        — Executive dashboard insights')
   console.log('  POST /api/ai/autofill         — Auto-fill object from description')
+  console.log('  POST /api/ai/triage-augment   — Suggest classification for pipeline item')
   console.log('  POST /api/ai/risk-assess      — Risk assessment for an object')
   console.log('  POST /api/ai/remediation      — Remediation plan for a gap')
   console.log('  POST /api/ai/prioritize-gaps  — Gap prioritization ranking')
@@ -378,8 +401,10 @@ app.listen(PORT, HOST, () => {
   console.log('  POST /api/ai/standup-actions   — Parse action items from notes')
   console.log('  POST /api/ai/standup-summary   — Summarize standup items')
   console.log('  POST /api/ai/framework-assess  — Framework maturity assessment (CIS/CSF)')
+  console.log('  POST /api/ai/framework-controls — Enterprise control assessment')
   console.log('  POST /api/ai/regulatory-detect — Regulatory attestation detection')
   console.log('  POST /api/ai/kpi-coherence    — KPI coherence assessment')
   console.log('  POST /api/ai/control-coherence — Control description coherence')
-  console.log('  GET  /api/health              — Health check')
+  console.log('  POST /api/ai/safeguard-assess — Safeguard-level compliance assessment')
+  console.log('  GET  /api/health              — Health check (provider status)')
 })

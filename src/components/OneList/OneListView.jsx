@@ -2,7 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { useStore, useDispatch } from '../../store/useStore.jsx'
 import { POSTURE_LEVELS, PRODUCT_FAMILIES } from '../../data/constants.js'
 import { computePosture, formatDate } from '../../utils/compliance.js'
+import { mapObjectToCIS, mapObjectToCSF, mapObjectToGLBA, mapObjectToNYDFS } from '../../data/frameworks.js'
+import { computeSafeguardScore } from '../../utils/safeguardScoring.js'
 import ObjectForm from './ObjectForm.jsx'
+
+import { CIS_SAFEGUARDS as _CIS_SG, NIST_CSF_SAFEGUARDS as _CSF_SG, GLBA_SAFEGUARDS as _GLBA_SG, NYDFS_SAFEGUARDS as _NYDFS_SG } from '../../data/safeguards.js'
 
 const VIEWS = [
   { id: 'table', label: 'Table', icon: 'M3 10h18M3 14h18M3 18h18M3 6h18' },
@@ -18,7 +22,7 @@ const CRIT_STYLES = {
 }
 
 export default function OneListView({ onNavigate, promotionData, onClearPromotion }) {
-  const { objects, gaps, mlgAssessments } = useStore()
+  const { objects, gaps, mlgAssessments, safeguardAssessments } = useStore()
   const dispatch = useDispatch()
   const [search, setSearch] = useState('')
   const [filterPosture, setFilterPosture] = useState('')
@@ -167,6 +171,26 @@ export default function OneListView({ onNavigate, promotionData, onClearPromotio
     return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
   }
 
+  const getSafeguardGapCount = (obj) => {
+    const sa = safeguardAssessments || {}
+    const fws = [
+      { key: 'cis-v8', groups: mapObjectToCIS(obj), sgs: _CIS_SG, gk: 'groupId' },
+      { key: 'nist-csf', groups: mapObjectToCSF(obj), sgs: _CSF_SG, gk: 'categoryId' },
+      { key: 'glba', groups: mapObjectToGLBA(obj), sgs: _GLBA_SG, gk: 'domainId' },
+      { key: 'nydfs', groups: mapObjectToNYDFS(obj), sgs: _NYDFS_SG, gk: 'domainId' },
+    ]
+    let count = 0
+    for (const fw of fws) {
+      const fwA = sa[fw.key] || {}
+      for (const sg of fw.sgs) {
+        if (!fw.groups.includes(sg[fw.gk])) continue
+        const a = fwA[sg.id]
+        if (a && computeSafeguardScore(a) < 0.3) count++
+      }
+    }
+    return count
+  }
+
   return (
     <div>
       <div className="flex justify-between items-start mb-6">
@@ -252,7 +276,9 @@ export default function OneListView({ onNavigate, promotionData, onClearPromotio
                   <th className="bg-subtle/80 backdrop-blur-sm text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 cursor-pointer select-none hover:text-txt transition-colors border-b border-border-light" onClick={() => toggleSort('posture')} title="Click to sort">Posture <SortIcon field="posture" /></th>
                   <th className="bg-subtle/80 backdrop-blur-sm text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 cursor-pointer select-none hover:text-txt transition-colors border-b border-border-light" onClick={() => toggleSort('compliancePercent')} title="Click to sort">Coverage <SortIcon field="compliancePercent" /></th>
                   <th className="bg-subtle/80 backdrop-blur-sm text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 cursor-pointer select-none hover:text-txt transition-colors border-b border-border-light" onClick={() => toggleSort('owner')} title="Click to sort">Owner <SortIcon field="owner" /></th>
+                  <th className="bg-subtle/80 backdrop-blur-sm text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 cursor-pointer select-none hover:text-txt transition-colors border-b border-border-light" onClick={() => toggleSort('operator')} title="Click to sort">Operator <SortIcon field="operator" /></th>
                   <th className="bg-subtle/80 backdrop-blur-sm text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 cursor-pointer select-none hover:text-txt transition-colors border-b border-border-light" onClick={() => toggleSort('updatedAt')} title="Click to sort">Updated <SortIcon field="updatedAt" /></th>
+                  {_CIS_SG.length > 0 && <th className="bg-subtle/80 backdrop-blur-sm text-[0.72rem] font-bold uppercase tracking-[0.08em] text-txt-3 px-4 py-3 border-b border-border-light" title="Mapped safeguards scoring below 30%">SG Gaps</th>}
                   <th className="bg-subtle/80 backdrop-blur-sm px-4 py-3 border-b border-border-light"></th>
                 </tr>
               </thead>
@@ -293,7 +319,16 @@ export default function OneListView({ onNavigate, promotionData, onClearPromotio
                         </div>
                       </td>
                       <td className="px-4 py-3 text-txt-3 text-[0.82rem]">{obj.owner || '—'}</td>
+                      <td className="px-4 py-3 text-txt-3 text-[0.82rem]">{obj.operator || '—'}</td>
                       <td className="px-4 py-3 text-txt-3 text-[0.82rem]">{formatDate(obj.updatedAt)}</td>
+                      {_CIS_SG.length > 0 && (() => {
+                        const sgGaps = getSafeguardGapCount(obj)
+                        return (
+                          <td className="px-4 py-3 text-[0.82rem]">
+                            {sgGaps > 0 ? <span className="text-[0.72rem] font-bold px-2 py-0.5 rounded-full bg-red-bg text-red">{sgGaps}</span> : <span className="text-txt-3">—</span>}
+                          </td>
+                        )
+                      })()}
                       <td className="px-4 py-3">
                         <button
                           className="bg-transparent border-none text-txt-3 cursor-pointer p-1.5 rounded-lg transition-all duration-150 hover:text-brand hover:bg-brand/5"

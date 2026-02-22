@@ -15,6 +15,10 @@ const INITIAL_STATE = {
   frameworkOverrides: {},
   attestations: {},       // { [objectId]: ['SOC2', 'SOX', ...] }
   regulatoryQueue: [],    // [{ id, objectId, objectName, attestationId, confidence, rationale, detectedAt, status }]
+  safeguardAssessments: { 'cis-v8': {}, 'nist-csf': {}, 'glba': {}, 'nydfs': {} },
+  complianceSnapshots: [],
+  cisIgFilter: 3,         // 1=IG1, 2=IG1+IG2, 3=All
+  aiProvider: 'ollama',   // 'ollama' | 'claude'
 }
 
 // Migrate legacy state: objectIds-based gaps → pipeline gaps, add remediationItems to objects
@@ -46,6 +50,30 @@ function migrateState(state) {
     changed = true
     return { ...o, remediationItems: [] }
   })
+  // Ensure safeguardAssessments, complianceSnapshots, cisIgFilter exist
+  if (!state.safeguardAssessments) {
+    changed = true
+    state = { ...state, safeguardAssessments: { 'cis-v8': {}, 'nist-csf': {}, 'glba': {}, 'nydfs': {} } }
+  } else {
+    // Ensure all four framework keys exist
+    const sa = state.safeguardAssessments
+    if (!sa['cis-v8'] || !sa['nist-csf'] || !sa['glba'] || !sa['nydfs']) {
+      changed = true
+      state = { ...state, safeguardAssessments: { 'cis-v8': {}, 'nist-csf': {}, 'glba': {}, 'nydfs': {}, ...sa } }
+    }
+  }
+  if (!state.complianceSnapshots) {
+    changed = true
+    state = { ...state, complianceSnapshots: [] }
+  }
+  if (state.cisIgFilter === undefined) {
+    changed = true
+    state = { ...state, cisIgFilter: 3 }
+  }
+  if (!state.aiProvider) {
+    changed = true
+    state = { ...state, aiProvider: 'ollama' }
+  }
   return changed ? { ...state, gaps: gaps2, objects } : state
 }
 
@@ -54,15 +82,12 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = { ...INITIAL_STATE, ...JSON.parse(raw) }
-      // If store exists but is empty, seed it
-      if (parsed.objects.length === 0 && parsed.gaps.length === 0) {
-        return migrateState({ ...INITIAL_STATE, ...SEED_STATE })
-      }
       return migrateState(parsed)
     }
   } catch { /* ignore */ }
-  // First load — seed with synthetic data
-  return migrateState({ ...INITIAL_STATE, ...SEED_STATE })
+  // First load — start blank (set SEED=true below to restore seed data)
+  // return migrateState({ ...INITIAL_STATE, ...SEED_STATE })
+  return migrateState({ ...INITIAL_STATE })
 }
 
 function saveState(state) {
@@ -144,6 +169,9 @@ function reducer(state, action) {
         if (action.payload.owner && action.payload.owner !== o.owner) {
           history.push({ action: 'Owner changed', note: `${o.owner || 'Unassigned'} → ${action.payload.owner}`, timestamp: now })
         }
+        if (action.payload.operator && action.payload.operator !== o.operator) {
+          history.push({ action: 'Operator changed', note: `${o.operator || 'Unassigned'} → ${action.payload.operator}`, timestamp: now })
+        }
         // If no specific tracked field changed but something was edited
         if (history.length === (o.history || []).length) {
           history.push({ action: 'Updated', note: 'Object details modified', timestamp: now })
@@ -185,8 +213,9 @@ function reducer(state, action) {
         identifier: '',
         triaged: false,
         productFamily: '',
-        targetType: 'Control',
+        targetType: '',
         owner: '',
+        operator: '',
         criticality: 'Medium',
         title: '',
         description: '',
@@ -194,6 +223,14 @@ function reducer(state, action) {
         healthStatus: 'RED',
         controlClassification: 'Informal',
         nistFamilies: [],
+        controlObjective: '',
+        controlType: '',
+        implementationType: '',
+        executionFrequency: '',
+        outcome: '',
+        systemsTools: '',
+        audience: '',
+        scope: '',
         kpiNumerator: 0,
         kpiDenominator: 0,
         compliancePercent: 0,
@@ -274,6 +311,7 @@ function reducer(state, action) {
         productFamilies: gap.productFamily ? [gap.productFamily] : [],
         type: gap.targetType || 'Control',
         owner: gap.owner || '',
+        operator: gap.operator || '',
         criticality: gap.criticality || 'Medium',
         controlClassification: gap.controlClassification || 'Informal',
         nistFamilies: gap.nistFamilies || [],
@@ -465,9 +503,74 @@ function reducer(state, action) {
         regulatoryQueue: state.regulatoryQueue.filter((item) => item.status === 'pending'),
       }
 
+    // ── Safeguard Assessments ──
+    case 'SET_SAFEGUARD': {
+      const { framework, safeguardId, policy, implementation, note } = action.payload
+      const sa = state.safeguardAssessments || {}
+      const fwAssessments = { ...(sa[framework] || {}) }
+      fwAssessments[safeguardId] = { policy, implementation, note: note || '', updatedAt: new Date().toISOString() }
+      return { ...state, safeguardAssessments: { ...sa, [framework]: fwAssessments } }
+    }
+    case 'SET_SAFEGUARDS_BULK': {
+      const { framework, assessments } = action.payload
+      const sa = state.safeguardAssessments || {}
+      const fwAssessments = { ...(sa[framework] || {}), ...assessments }
+      return { ...state, safeguardAssessments: { ...sa, [framework]: fwAssessments } }
+    }
+    case 'CLEAR_SAFEGUARD': {
+      const { framework, safeguardId } = action.payload
+      const sa = state.safeguardAssessments || {}
+      const fwAssessments = { ...(sa[framework] || {}) }
+      delete fwAssessments[safeguardId]
+      return { ...state, safeguardAssessments: { ...sa, [framework]: fwAssessments } }
+    }
+    case 'SET_CIS_IG_FILTER':
+      return { ...state, cisIgFilter: action.payload.filter }
+    case 'SAVE_COMPLIANCE_SNAPSHOT': {
+      const snapshot = { id: uuid(), timestamp: new Date().toISOString(), scores: action.payload.scores }
+      return { ...state, complianceSnapshots: [...(state.complianceSnapshots || []), snapshot] }
+    }
+    case 'CREATE_GAP_FROM_SAFEGUARD': {
+      const { framework, safeguardId, safeguardName } = action.payload
+      const gap = {
+        id: uuid(),
+        identifier: 'System',
+        triaged: false,
+        productFamily: '',
+        targetType: 'Control',
+        owner: '',
+        criticality: 'Medium',
+        title: `[${framework.toUpperCase()}] ${safeguardName}`,
+        description: `Gap identified from safeguard assessment: ${safeguardId} — ${safeguardName}`,
+        status: 'Open',
+        healthStatus: 'RED',
+        controlClassification: 'Informal',
+        nistFamilies: [],
+        kpiNumerator: 0,
+        kpiDenominator: 0,
+        compliancePercent: 0,
+        remediationNote: '',
+        expiryDate: '',
+        jiraL1: '',
+        jiraL2: '',
+        sourceSafeguard: { framework, safeguardId, name: safeguardName },
+        history: [{ status: 'Open', note: `Gap created from ${framework} safeguard: ${safeguardId}`, timestamp: new Date().toISOString() }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      return { ...state, gaps: [...state.gaps, gap] }
+    }
+
+    // ── AI Provider ──
+    case 'SET_AI_PROVIDER':
+      return { ...state, aiProvider: action.payload.provider }
+
     // ── Bulk ──
     case 'RESTORE_STATE':
       return migrateState({ ...INITIAL_STATE, ...action.payload })
+
+    case 'RESET_STATE':
+      return { ...INITIAL_STATE }
 
     default:
       return state
