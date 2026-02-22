@@ -74,6 +74,8 @@ function migrateState(state) {
     changed = true
     state = { ...state, aiProvider: 'ollama' }
   }
+  // sourceGapId (on objects) and promotedToObjectId (on gaps) are optional —
+  // they default to undefined for legacy data and are checked with truthiness guards
   return changed ? { ...state, gaps: gaps2, objects } : state
 }
 
@@ -277,6 +279,26 @@ function reducer(state, action) {
       })
       return { ...state, gaps }
     }
+    case 'ENRICH_GAP': {
+      const gaps = state.gaps.map((g) => {
+        if (g.id !== action.payload.id) return g
+        const now = new Date().toISOString()
+        const updated = { ...g, ...action.payload, updatedAt: now }
+        if (updated.kpiNumerator !== undefined || updated.kpiDenominator !== undefined) {
+          updated.compliancePercent = calcCompliance(updated.kpiNumerator, updated.kpiDenominator)
+        }
+        updated.history = [
+          ...(g.history || []),
+          {
+            status: 'Enriched',
+            note: `Classification detail added by ${action.payload.identifier || 'unknown'}`,
+            timestamp: now,
+          },
+        ]
+        return updated
+      })
+      return { ...state, gaps }
+    }
     case 'TRIAGE_GAP': {
       const gaps = state.gaps.map((g) => {
         if (g.id !== action.payload.id) return g
@@ -299,48 +321,6 @@ function reducer(state, action) {
     }
     case 'DELETE_GAP':
       return { ...state, gaps: state.gaps.filter((g) => g.id !== action.payload) }
-
-    // ── Promote Gap to Object ──
-    case 'PROMOTE_GAP': {
-      const gap = state.gaps.find((g) => g.id === action.payload)
-      if (!gap) return state
-      const newObj = newObject({
-        listName: gap.title,
-        description: gap.description || '',
-        healthStatus: 'GREEN',
-        productFamilies: gap.productFamily ? [gap.productFamily] : [],
-        type: gap.targetType || 'Control',
-        owner: gap.owner || '',
-        operator: gap.operator || '',
-        criticality: gap.criticality || 'Medium',
-        controlClassification: gap.controlClassification || 'Informal',
-        nistFamilies: gap.nistFamilies || [],
-        kpiNumerator: gap.kpiNumerator || 0,
-        kpiDenominator: gap.kpiDenominator || 0,
-        jiraL1: gap.jiraL1 || '',
-        jiraL2: gap.jiraL2 || '',
-        history: [{ action: 'Promoted', note: `Promoted from pipeline: "${gap.title}"`, timestamp: new Date().toISOString() }],
-      })
-      newObj.compliancePercent = calcCompliance(newObj.kpiNumerator, newObj.kpiDenominator)
-      const updatedGap = {
-        ...gap,
-        status: 'Closed',
-        updatedAt: new Date().toISOString(),
-        history: [
-          ...(gap.history || []),
-          {
-            status: 'Promoted',
-            note: `Promoted to Object Inventory as "${newObj.listName}"`,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      }
-      return {
-        ...state,
-        objects: [...state.objects, newObj],
-        gaps: state.gaps.map((g) => (g.id === gap.id ? updatedGap : g)),
-      }
-    }
 
     // ── Standup Items ──
     case 'ADD_STANDUP': {

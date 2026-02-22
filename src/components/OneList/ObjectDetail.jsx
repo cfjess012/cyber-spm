@@ -763,6 +763,12 @@ export default function ObjectDetail({ objectId, onNavigate }) {
       )}
 
       {/* Audit Trail */}
+      {obj.sourceGapId && (
+        <div className="flex items-center gap-2 px-4 py-2.5 mb-3 bg-brand-light border border-brand/10 rounded-xl text-[0.8rem] text-brand-deep">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <span className="font-medium">Promoted from pipeline</span>
+        </div>
+      )}
       {obj.history?.length > 0 && (
         <div className="bg-white/80 backdrop-blur-xl rounded-xl shadow-sm border border-white/50 p-5 mb-5">
           <div className="flex items-center justify-between mb-4">

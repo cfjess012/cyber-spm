@@ -135,14 +135,18 @@ export default function OneListView({ onNavigate, promotionData, onClearPromotio
   const handleSave = (data) => {
     if (promotionData?.gapId && promotionPrefill) {
       // Promotion: create complete object + close the pipeline item
+      const objectId = crypto.randomUUID()
       dispatch({ type: 'ADD_OBJECT', payload: {
         ...data,
+        id: objectId,
+        sourceGapId: promotionData.gapId,
         history: [{ action: 'Promoted', note: `Promoted from pipeline: "${promotionData.gapTitle}"`, timestamp: new Date().toISOString() }],
       }})
       dispatch({ type: 'UPDATE_GAP', payload: {
         id: promotionData.gapId,
         status: 'Closed',
-        remediationNote: `Promoted to Object Inventory as "${data.listName}"`,
+        promotedToObjectId: objectId,
+        remediationNote: `Promoted to Object Inventory as "${data.listName}" (ID: ${objectId})`,
       }})
       onClearPromotion?.()
       setPromotionPrefill(null)
